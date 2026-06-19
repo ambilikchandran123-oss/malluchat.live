@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://malluchat.online/sitemap.xml
+Sitemap: https://malluchat.live/sitemap.xml

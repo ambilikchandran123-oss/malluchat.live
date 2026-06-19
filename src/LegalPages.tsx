@@ -72,7 +72,7 @@ export const PrivacyPage = () => (
 
         <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}><em>Effective Date: February 2026</em></p>
 
-        <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>MalluChat.online operates a privacy-first, peer-to-peer communication model. This policy outlines our technical architecture and strict adherence to data minimization principles.</p>
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>MalluChat.live operates a privacy-first, peer-to-peer communication model. This policy outlines our technical architecture and strict adherence to data minimization principles.</p>
 
         <Section title="1. No Personal Data Collection">
             <p>Our platform strictly operates without user accounts. We DO NOT collect, request, or store:</p>
@@ -139,7 +139,7 @@ export const TermsPage = () => (
 
         <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}><em>Effective Date: February 2026</em></p>
 
-        <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>By accessing MalluChat.online, you expressly agree to these Terms and Conditions.</p>
+        <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>By accessing MalluChat.live, you expressly agree to these Terms and Conditions.</p>
 
         <Section title="1. Legal Classification & Intermediary Status">
             <p>MalluChat is strictly classified as an <strong>&quot;Intermediary&quot;</strong> under Section 2(w) of the Information Technology Act, 2000 (India). We claim comprehensive Safe Harbour protection under Section 79 of the IT Act. We provide a neutral technological framework allowing users to transmit information.</p>
@@ -225,7 +225,7 @@ export const DisclaimerPage = () => (
                     <span>Chief Grievance Officer</span>
 
                     <strong style={{ color: '#fff' }}>Email:</strong>
-                    <a href="mailto:grievance@malluchat.online" style={{ color: 'var(--primary)', textDecoration: 'none' }}>grievance@malluchat.online</a>
+                    <a href="mailto:grievance@malluchat.live" style={{ color: 'var(--primary)', textDecoration: 'none' }}>grievance@malluchat.live</a>
 
                     <strong style={{ color: '#fff' }}>Jurisdiction:</strong>
                     <span>Republic of India</span>

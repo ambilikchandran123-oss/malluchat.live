@@ -1013,7 +1013,7 @@ export default function App() {
 
   const handleAdminLogin = () => {
     // Basic verification logic
-    if (adminEmail === 'admin@malluchat.online' && adminPassword === 'Admin@123') {
+    if (adminEmail === 'admin@malluchat.live' && adminPassword === 'Admin@123') {
       setIsAdminAuth(true);
       setShowAdminLogin(false);
       setShowAdminPanel(true);

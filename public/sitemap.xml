@@ -1,28 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://malluchat.online/</loc>
+    <loc>https://malluchat.live/</loc>
     <lastmod>2026-02-26</lastmod>
     <changefreq>always</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://malluchat.online/privacy</loc>
+    <loc>https://malluchat.live/privacy</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://malluchat.online/terms</loc>
+    <loc>https://malluchat.live/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://malluchat.online/aup</loc>
+    <loc>https://malluchat.live/aup</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://malluchat.online/disclaimer</loc>
+    <loc>https://malluchat.live/disclaimer</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
