@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download } from 'lucide-react';
+import { ringtone } from './utils/ringtone';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -10,6 +11,10 @@ import './index.css';
 // Mock UI sounds
 const sentSound = new Audio('/sent.mp3');
 const receivedSound = new Audio('/received.mp3');
+
+const isDev = window.location.port === '5173';
+const BACKEND_URL = isDev ? 'http://localhost:3000' : `${window.location.protocol}//${window.location.host}`;
+const WS_URL = isDev ? 'ws://localhost:3000/ws' : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
 const GoogleAdMessage = () => {
   useEffect(() => {
@@ -34,10 +39,157 @@ const GoogleAdMessage = () => {
 
 
 
+const clearOldMessages = () => {
+  const now = Date.now();
+  const limit = 86400000; // 24 hours in milliseconds
+
+  // 1. Clean public messages
+  const publicStored = localStorage.getItem('malluchat_public_messages');
+  if (publicStored) {
+    try {
+      const parsed = JSON.parse(publicStored);
+      const filtered = parsed.filter((m: any) => now - m.timestamp < limit);
+      localStorage.setItem('malluchat_public_messages', JSON.stringify(filtered));
+    } catch (e) {
+      localStorage.removeItem('malluchat_public_messages');
+    }
+  }
+
+  // 2. Clean private messages
+  const keysToProcess: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('malluchat_private_messages_')) {
+      keysToProcess.push(key);
+    }
+  }
+
+  keysToProcess.forEach(key => {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const filtered = parsed.filter((m: any) => now - m.timestamp < limit);
+        if (filtered.length === 0) {
+          localStorage.removeItem(key);
+        } else {
+          localStorage.setItem(key, JSON.stringify(filtered));
+        }
+      } catch (e) {
+        localStorage.removeItem(key);
+      }
+    }
+  });
+};
+
+const KOCHI_SUB_LOCS = ['Kakkanad', 'Edappally', 'Kaloor', 'Fort Kochi', 'Kalamassery', 'Palarivattom', 'Vytilla', 'Aluva', 'Cheranallur', 'Tripunithura', 'Panampilly Nagar', 'Kadavanthra', 'Vennala', 'Elamakkara', 'Maradu', 'Thevara'];
+const CALICUT_SUB_LOCS = ['Elathur', 'Beypore', 'Nallalam', 'Chevayur', 'Kovoor', 'Pantheerankavu', 'Thondayad', 'Mankave', 'Kallayi', 'Vellimadukunnu', 'Nadakkavu', 'Pottammal', 'Karaparamba', 'Kottooli', 'Chevarambalam'];
+const TRIVANDRUM_SUB_LOCS = ['Kazhakoottam', 'Kowdiar', 'Pattom', 'Vellayambalam', 'Varkala', 'Nemom', 'Peroorkada', 'Vizhinjam', 'Sreekaryam', 'Vattiyoorkavu', 'Ambalamukku', 'Sasthamangalam', 'Thirumala', 'Mannanthala', 'Nalanchira', 'Poojappura'];
+const THRISSUR_SUB_LOCS = ['Kanattukara', 'Punkunnam', 'Ramavarmapuram', 'Ollur', 'Kuriachira', 'Ayyanthole', 'Kolazhy', 'Mannuthy', 'Koorkanchery', 'Guruvayur', 'Patturaikkal', 'Nadathara', 'Peringavu', 'Cheroor', 'Vilvattom'];
+const MALAPPURAM_SUB_LOCS = ['Kottakkal', 'Manjeri', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty', 'Valanchery', 'Edappal', 'Tanur', 'Wandoor', 'Melattur', 'Anakkayam', 'Mongam', 'Down Hill'];
+
+const GENERIC_SUB_LOCS = ['Sector 1', 'West Side', 'Sector 4', 'South Layout', 'North Extension', 'East Ward', 'Phase 2', 'Green Valley', 'Greenwood', 'Riverview', 'Lakeside', 'Oakridge', 'Willow Creek', 'Pine Hills', 'Maple Wood', 'Sunnyvale'];
+
+
+const getProfileLocation = (index: number, cityName: string) => {
+  const cleanCity = cityName.split(',')[0].trim();
+  const lowerCity = cleanCity.toLowerCase();
+  
+  let subLocList = GENERIC_SUB_LOCS;
+  if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
+    subLocList = KOCHI_SUB_LOCS;
+  } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
+    subLocList = CALICUT_SUB_LOCS;
+  } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
+    subLocList = TRIVANDRUM_SUB_LOCS;
+  } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
+    subLocList = THRISSUR_SUB_LOCS;
+  } else if (lowerCity.includes('malappuram')) {
+    subLocList = MALAPPURAM_SUB_LOCS;
+  }
+  
+  const subLoc = subLocList[index % subLocList.length];
+  return subLoc;
+};
+
+const DEMO_PROFILES = [
+  { id: 'demo-1', name: 'Aisha', gender: 'female', status: 'online', latOffset: 0.012, lonOffset: -0.008, defaultDist: 1.5, avatar: 'Ai' },
+  { id: 'demo-2', name: 'Ananya', gender: 'female', status: 'online', latOffset: -0.005, lonOffset: 0.015, defaultDist: 1.8, avatar: 'An' },
+  { id: 'demo-3', name: 'Fathima', gender: 'female', status: 'online', latOffset: 0.022, lonOffset: 0.018, defaultDist: 3.2, avatar: 'Fa' },
+  { id: 'demo-4', name: 'Devika', gender: 'female', status: 'offline', latOffset: -0.018, lonOffset: -0.025, defaultDist: 3.8, avatar: 'De' },
+  { id: 'demo-5', name: 'Riza', gender: 'female', status: 'online', latOffset: 0.052, lonOffset: -0.012, defaultDist: 5.7, avatar: 'Ri' },
+  { id: 'demo-6', name: 'Gopika', gender: 'female', status: 'online', latOffset: 0.008, lonOffset: 0.042, defaultDist: 4.8, avatar: 'Go' },
+  { id: 'demo-7', name: 'Jasna', gender: 'female', status: 'offline', latOffset: -0.045, lonOffset: -0.012, defaultDist: 5.1, avatar: 'Ja' },
+  { id: 'demo-8', name: 'Malavika', gender: 'female', status: 'online', latOffset: 0.052, lonOffset: 0.028, defaultDist: 6.5, avatar: 'Ma' },
+  { id: 'demo-9', name: 'Naadiya', gender: 'female', status: 'online', latOffset: -0.022, lonOffset: 0.058, defaultDist: 6.8, avatar: 'Na' },
+  { id: 'demo-10', name: 'Kavya', gender: 'female', status: 'offline', latOffset: 0.062, lonOffset: -0.048, defaultDist: 8.7, avatar: 'Ka' },
+  { id: 'demo-11', name: 'Sneha', gender: 'female', status: 'online', latOffset: -0.032, lonOffset: 0.022, defaultDist: 4.1, avatar: 'Sn' },
+  { id: 'demo-12', name: 'Maria', gender: 'female', status: 'offline', latOffset: 0.045, lonOffset: -0.035, defaultDist: 6.2, avatar: 'Mr' },
+  { id: 'demo-13', name: 'Riya', gender: 'female', status: 'online', latOffset: -0.012, lonOffset: 0.065, defaultDist: 7.1, avatar: 'Ry' },
+  { id: 'demo-14', name: 'Sherin', gender: 'female', status: 'offline', latOffset: 0.075, lonOffset: 0.012, defaultDist: 9.3, avatar: 'Sh' },
+  { id: 'demo-15', name: 'Sandra', gender: 'female', status: 'online', latOffset: -0.055, lonOffset: 0.045, defaultDist: 8.0, avatar: 'Sa' },
+  { id: 'demo-16', name: 'Farhana', gender: 'female', status: 'offline', latOffset: 0.015, lonOffset: -0.062, defaultDist: 6.9, avatar: 'Fa' },
+  { id: 'demo-17', name: 'Shilpa', gender: 'female', status: 'online', latOffset: -0.025, lonOffset: -0.055, defaultDist: 7.4, avatar: 'Sp' },
+  { id: 'demo-18', name: 'Anjali', gender: 'female', status: 'offline', latOffset: 0.038, lonOffset: 0.052, defaultDist: 5.5, avatar: 'Aj' },
+  { id: 'demo-19', name: 'Akhil', gender: 'male', status: 'online', latOffset: -0.015, lonOffset: -0.008, defaultDist: 1.8, avatar: 'Ak' },
+  { id: 'demo-20', name: 'Faisal', gender: 'male', status: 'online', latOffset: 0.028, lonOffset: 0.002, defaultDist: 3.1, avatar: 'Fi' },
+  { id: 'demo-21', name: 'Rahul', gender: 'male', status: 'offline', latOffset: -0.042, lonOffset: 0.025, defaultDist: 5.3, avatar: 'Ra' },
+  { id: 'demo-22', name: 'Shamil', gender: 'male', status: 'online', latOffset: 0.062, lonOffset: -0.022, defaultDist: 7.6, avatar: 'Sm' },
+  { id: 'demo-23', name: 'Vishnu', gender: 'male', status: 'offline', latOffset: -0.038, lonOffset: -0.048, defaultDist: 6.4, avatar: 'Vi' },
+  { id: 'demo-24', name: 'Anas', gender: 'male', status: 'online', latOffset: 0.018, lonOffset: 0.055, defaultDist: 5.0, avatar: 'An' },
+  { id: 'demo-25', name: 'Meera', gender: 'female', status: 'online', latOffset: 0.182, lonOffset: -0.052, defaultDist: 21.0, avatar: 'Me' },
+  { id: 'demo-26', name: 'Nafiah', gender: 'female', status: 'online', latOffset: -0.155, lonOffset: 0.122, defaultDist: 21.8, avatar: 'Na' },
+  { id: 'demo-27', name: 'Sruthi', gender: 'female', status: 'offline', latOffset: 0.168, lonOffset: -0.095, defaultDist: 21.4, avatar: 'Sr' },
+  { id: 'demo-28', name: 'Hadiya', gender: 'female', status: 'online', latOffset: -0.215, lonOffset: 0.142, defaultDist: 28.5, avatar: 'Ha' },
+  { id: 'demo-29', name: 'Aswathy', gender: 'female', status: 'online', latOffset: 0.278, lonOffset: -0.082, defaultDist: 32.0, avatar: 'As' },
+  { id: 'demo-30', name: 'Shabna', gender: 'female', status: 'offline', latOffset: -0.175, lonOffset: -0.065, defaultDist: 20.8, avatar: 'Sh' },
+  { id: 'demo-31', name: 'Karthika', gender: 'female', status: 'online', latOffset: 0.192, lonOffset: 0.045, defaultDist: 21.8, avatar: 'Ka' },
+  { id: 'demo-32', name: 'Fida', gender: 'female', status: 'online', latOffset: -0.252, lonOffset: -0.115, defaultDist: 30.7, avatar: 'Fi' },
+  { id: 'demo-33', name: 'Parvathy', gender: 'female', status: 'offline', latOffset: 0.312, lonOffset: 0.055, defaultDist: 35.1, avatar: 'Pa' },
+  { id: 'demo-34', name: 'Dilsha', gender: 'female', status: 'online', latOffset: -0.162, lonOffset: 0.085, defaultDist: 20.3, avatar: 'Di' },
+  { id: 'demo-35', name: 'Jithin', gender: 'male', status: 'online', latOffset: 0.185, lonOffset: -0.045, defaultDist: 21.1, avatar: 'Ji' },
+  { id: 'demo-36', name: 'Nabeel', gender: 'male', status: 'online', latOffset: -0.178, lonOffset: 0.082, defaultDist: 21.7, avatar: 'Na' },
+  { id: 'demo-37', name: 'Pranav', gender: 'male', status: 'offline', latOffset: 0.222, lonOffset: 0.115, defaultDist: 27.8, avatar: 'Pr' },
+  { id: 'demo-38', name: 'Ashique', gender: 'male', status: 'online', latOffset: -0.192, lonOffset: -0.035, defaultDist: 21.6, avatar: 'As' },
+  { id: 'demo-39', name: 'Siddharth', gender: 'male', status: 'offline', latOffset: 0.265, lonOffset: -0.092, defaultDist: 31.2, avatar: 'Si' },
+  { id: 'demo-40', name: 'Arshad', gender: 'male', status: 'online', latOffset: -0.181, lonOffset: 0.048, defaultDist: 20.8, avatar: 'Ar' }
+];
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return (R * c).toFixed(1);
+};
+
 export default function App() {
-  const [viewMode, setViewMode] = useState<'private' | 'public'>('public');
+  const [viewMode, setViewMode] = useState<'private' | 'public' | 'random'>('public');
   const [username, setUsername] = useState<string>('');
   const [showLoginModal, setShowLoginModal] = useState(false);
+
+  // Random Calling states
+  const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('female');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [detectedCity, setDetectedCity] = useState<string>('Kochi, Kerala');
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'success' | 'failed'>('idle');
+  const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
+  const [showPaywall, setShowPaywall] = useState<boolean>(false);
+  const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
+  const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
+  const [screenshotFileName, setScreenshotFileName] = useState<string>('');
+  const [verificationSubmitted, setVerificationSubmitted] = useState<boolean>(false);
+  const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
+  const [targetUpiId, setTargetUpiId] = useState<string>('BHARATPE2J0A0P6U4O28675@unitype');
+  const [showPaymentSettings, setShowPaymentSettings] = useState<boolean>(false);
+  const [showQrCode, setShowQrCode] = useState<boolean>(false);
+  const [currentTxnId, setCurrentTxnId] = useState<string>('');
+  const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
+  const [demoUsers, setDemoUsers] = useState<any[]>(DEMO_PROFILES);
 
   // Video Call States
   const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
@@ -56,7 +208,19 @@ export default function App() {
   const [inputText, setInputText] = useState<string>('');
 
   // Public Chat States
-  const [publicMessages, setPublicMessages] = useState<any[]>([]);
+  const [publicMessages, setPublicMessages] = useState<any[]>(() => {
+    const stored = localStorage.getItem('malluchat_public_messages');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        const now = Date.now();
+        return parsed.filter((m: any) => now - m.timestamp < 86400000);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
   const [publicInput, setPublicInput] = useState<string>('');
 
   // Reply State
@@ -113,19 +277,165 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Setup Global Public Chat via ntfy WebSocket
-    const ws = new WebSocket('wss://ntfy.sh/malluchat_v100/ws');
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.event === 'message') {
-        try {
-          const payload = JSON.parse(data.message);
-          setPublicMessages(prev => {
-            if (prev.find(m => m.id === payload.id)) return prev;
-            return [...prev, payload];
-          });
-        } catch (e) { }
+    if (viewMode === 'random' && locationStatus === 'idle') {
+      setLocationStatus('requesting');
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            setUserCoords({ lat: latitude, lon: longitude });
+            setLocationStatus('success');
+            
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+              const data = await res.json();
+              if (data && data.address) {
+                const city = data.address.city || data.address.town || data.address.village || data.address.suburb || data.address.county || 'Kochi';
+                const countyOrState = data.address.state || 'Kerala';
+                setDetectedCity(`${city}, ${countyOrState}`);
+              } else {
+                setDetectedCity('Kochi, Kerala');
+              }
+            } catch (e) {
+              setDetectedCity('Kochi, Kerala');
+            }
+          },
+          (error) => {
+            console.error("Geolocation error:", error);
+            setLocationStatus('failed');
+            setDetectedCity('Kochi, Kerala');
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+      } else {
+        setLocationStatus('failed');
+        setDetectedCity('Kochi, Kerala');
       }
+    }
+  }, [viewMode, locationStatus]);
+
+  const handleCallDemoUser = (user: any) => {
+    if (!username) {
+      setShowLoginModal(true);
+      return;
+    }
+    setActiveCallingUser(user);
+    ringtone.start();
+    const timeout = setTimeout(() => {
+      setShowPaywall(true);
+      ringtone.stop();
+    }, 1800);
+    setRingingTimeout(timeout);
+  };
+
+  const handleCancelCall = () => {
+    if (ringingTimeout) clearTimeout(ringingTimeout);
+    setRingingTimeout(null);
+    ringtone.stop();
+    setActiveCallingUser(null);
+    setShowPaywall(false);
+    setSelectedPlan(null);
+    setPaymentScreenshot(null);
+    setScreenshotFileName('');
+    setVerificationSubmitted(false);
+    setCopiedUpi(false);
+    setShowPaymentSettings(false);
+    setCurrentTxnId('');
+    setShowQrCode(false);
+  };
+
+  const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
+    const upiUrl = `upi://pay?pa=${encodeURIComponent(targetUpiId)}&pn=MalluChat&mc=5734&tr=${txnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${encodeURIComponent(planLabel)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiUrl)}`;
+    try {
+      const response = await fetch(qrUrl);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `malluchat_payment_qr_${amount}_rupees.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (e) {
+      console.error("Failed to download QR code image", e);
+    }
+  };
+
+  const handleSelectPlan = (plan: { amount: number; duration: string; label: string }) => {
+    setSelectedPlan(plan);
+    setPaymentScreenshot(null);
+    setScreenshotFileName('');
+    setVerificationSubmitted(false);
+    
+    const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
+    setCurrentTxnId(newTxnId);
+    
+    downloadUpiQrCode(plan.amount, plan.label, newTxnId);
+  };
+
+  const handleCopyUpi = () => {
+    navigator.clipboard.writeText(targetUpiId);
+    setCopiedUpi(true);
+    setTimeout(() => setCopiedUpi(false), 2000);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDemoUsers(prev => {
+        return prev.map(user => {
+          if (Math.random() < 0.15) {
+            return {
+              ...user,
+              status: user.status === 'online' ? 'offline' : 'online'
+            };
+          }
+          return user;
+        });
+      });
+    }, 7000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Fetch cached messages from our hosted backend to load history
+    fetch(`${BACKEND_URL}/api/messages`)
+      .then(res => res.json())
+      .then(messages => {
+        if (Array.isArray(messages) && messages.length > 0) {
+          setPublicMessages(prev => {
+            const newMsgs = messages.filter(fm => !prev.some(pm => pm.id === fm.id));
+            if (newMsgs.length === 0) return prev;
+            const updated = [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+            localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+            return updated;
+          });
+        }
+      })
+      .catch(err => console.error("Failed to load message history:", err));
+
+    // Setup Global Public Chat via custom WebSocket
+    const ws = new WebSocket(WS_URL);
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.event === 'user_count') {
+          setLiveUsers(400 + (data.count || 0));
+          return;
+        }
+        if (data.event === 'message') {
+          try {
+            const payload = JSON.parse(data.message);
+            setPublicMessages(prev => {
+              if (prev.find(m => m.id === payload.id)) return prev;
+              const updated = [...prev, payload];
+              localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+              return updated;
+            });
+          } catch (e) { }
+        }
+      } catch (err) { }
     };
 
     // Setup PeerJS for Private Chat only if not initialized
@@ -146,6 +456,23 @@ export default function App() {
 
     peerEngine.onConnected = () => {
       setStatus('connected');
+      const remotePeerId = peerEngine.connection?.peer;
+      if (remotePeerId) {
+        const stored = localStorage.getItem(`malluchat_private_messages_${remotePeerId}`);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            const now = Date.now();
+            const filtered = parsed.filter((m: any) => now - m.timestamp < 86400000);
+            setMessages(filtered);
+            localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(filtered));
+          } catch (e) {
+            setMessages([]);
+          }
+        } else {
+          setMessages([]);
+        }
+      }
       setTimeout(() => {
         peerEngine.sendMessage({
           id: uuidv4(),
@@ -159,6 +486,7 @@ export default function App() {
 
     peerEngine.onDisconnected = () => {
       setStatus('disconnected');
+      setMessages([]);
     };
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
@@ -191,16 +519,37 @@ export default function App() {
         return;
       }
       if (msg.type === 'reaction') {
-        setMessages(prev => prev.map(m => m.id === msg.targetId ? { ...m, reaction: msg.reaction } : m));
+        setMessages(prev => {
+          const updated = prev.map(m => m.id === msg.targetId ? { ...m, reaction: msg.reaction } : m);
+          const remotePeerId = peerEngine.connection?.peer;
+          if (remotePeerId) {
+            localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
         return;
       }
       if (msg.type === 'read') {
-        setMessages(prev => prev.map(m => m.id === msg.targetId ? { ...m, status: 'read' } : m));
+        setMessages(prev => {
+          const updated = prev.map(m => m.id === msg.targetId ? { ...m, status: 'read' } : m);
+          const remotePeerId = peerEngine.connection?.peer;
+          if (remotePeerId) {
+            localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+          }
+          return updated;
+        });
         return;
       }
 
       setRemoteTyping(false); // clear typing on msg receive
-      setMessages(prev => [...prev, msg]);
+      setMessages(prev => {
+        const updated = [...prev, msg];
+        const remotePeerId = peerEngine.connection?.peer;
+        if (remotePeerId) {
+          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
       receivedSound.play().catch(() => { });
 
       // Send back read receipt automatically
@@ -250,6 +599,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Run cleanup on mount
+    clearOldMessages();
+
+    // Periodic cleanup of state & storage (every 10 seconds)
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const limit = 86400000;
+
+      // Filter publicMessages state
+      setPublicMessages(prev => {
+        const filtered = prev.filter(m => now - m.timestamp < limit);
+        if (filtered.length !== prev.length) {
+          localStorage.setItem('malluchat_public_messages', JSON.stringify(filtered));
+        }
+        return filtered;
+      });
+
+      // Filter privateMessages state
+      setMessages(prev => {
+        const filtered = prev.filter(m => now - m.timestamp < limit);
+        const remotePeerId = peerEngine.connection?.peer;
+        if (remotePeerId && filtered.length !== prev.length) {
+          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(filtered));
+        }
+        return filtered;
+      });
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [peerEngine.connection]);
+
+  useEffect(() => {
     let interval: any;
     if (isRecording) {
       setRecordingTime(0);
@@ -295,12 +676,34 @@ export default function App() {
         id: uuidv4(),
         senderId: 'system-ad',
         senderName: 'Sponsor',
-        type: Math.random() > 0.5 ? 'ad' : 'google-ad',
-        text: '<strong>Protect your privacy online with Surfshark VPN!</strong><br><a href="#" style="color: var(--primary); text-decoration: underline;">Get 80% off + 2 months free</a> anonymously with Crypto!',
+        type: 'ad',
+        text: `<div style="display: flex; flex-direction: column; align-items: stretch; background: var(--panel-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--panel-border);">
+          <div style="background: white; padding: 20px; display: flex; justify-content: center; align-items: center;">
+            <img src="https://twingle.online/twingle-logo.png" style="height: 60px;" alt="Twingle Logo" />
+          </div>
+          <div style="padding: 12px; text-align: center;">
+            <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem; margin-bottom: 4px;">FREE MALLU DATING APP</div>
+            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">Find love, marriage, and friendship in Kerala.</div>
+            <a href="https://twingle.online" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: var(--primary); color: black; font-weight: bold; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 0.9rem;">Visit twingle.online</a>
+          </div>
+        </div>`,
         timestamp: Date.now()
       };
-      setPublicMessages(prev => [...prev, adMsg]);
-      setMessages(prev => [...prev, adMsg]);
+      setPublicMessages(prev => {
+        if (prev.some(m => m.senderId === 'system-ad')) return prev;
+        const updated = [...prev, adMsg];
+        localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+        return updated;
+      });
+      setMessages(prev => {
+        if (prev.some(m => m.senderId === 'system-ad')) return prev;
+        const updated = [...prev, adMsg];
+        const remotePeerId = peerEngine.connection?.peer;
+        if (remotePeerId) {
+          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
     }, 10000);
 
     return () => clearTimeout(adTimer);
@@ -379,8 +782,13 @@ export default function App() {
               .then(data => {
                 const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
                 const publicMsg = { ...msg, voiceBlob: directUrl };
-                setPublicMessages(prev => [...prev, publicMsg]);
-                fetch('https://ntfy.sh/malluchat_v100', {
+                setPublicMessages(prev => {
+                  const updated = [...prev, publicMsg];
+                  localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+                  return updated;
+                });
+
+                fetch(`${BACKEND_URL}/api/messages`, {
                   method: 'POST',
                   body: JSON.stringify(publicMsg)
                 }).catch(() => { });
@@ -391,7 +799,14 @@ export default function App() {
           } else {
             // Private direct connection can handle large data naturally
             peerEngine.sendMessage(msg);
-            setMessages(prev => [...prev, msg]);
+            setMessages(prev => {
+              const updated = [...prev, msg];
+              const remotePeerId = peerEngine.connection?.peer;
+              if (remotePeerId) {
+                localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+              }
+              return updated;
+            });
             sentSound.play().catch(() => { });
           }
         };
@@ -521,7 +936,14 @@ export default function App() {
     } as any;
 
     peerEngine.sendMessage(msg);
-    setMessages(prev => [...prev, msg]);
+    setMessages(prev => {
+      const updated = [...prev, msg];
+      const remotePeerId = peerEngine.connection?.peer;
+      if (remotePeerId) {
+        localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
     setInputText('');
     setReplyingTo(null);
     peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
@@ -544,8 +966,12 @@ export default function App() {
       replyText: replyingTo?.text || "Voice/Image"
     };
 
-    setPublicMessages(prev => [...prev, msg]);
-    fetch('https://ntfy.sh/malluchat_v100', {
+    setPublicMessages(prev => {
+      const updated = [...prev, msg];
+      localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+      return updated;
+    });
+    fetch(`${BACKEND_URL}/api/messages`, {
       method: 'POST',
       body: JSON.stringify(msg)
     }).catch(() => { });
@@ -567,8 +993,12 @@ export default function App() {
       timestamp: Date.now()
     } as any;
 
-    setPublicMessages(prev => [...prev, adMsg]);
-    fetch('https://ntfy.sh/malluchat_v100', {
+    setPublicMessages(prev => {
+      const updated = [...prev, adMsg];
+      localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+      return updated;
+    });
+    fetch(`${BACKEND_URL}/api/messages`, {
       method: 'POST',
       body: JSON.stringify(adMsg)
     }).catch(() => { });
@@ -595,7 +1025,14 @@ export default function App() {
   const handleReaction = (msgId: string) => {
     const reactionMsg = { id: uuidv4(), senderId: myId, senderName: username, type: 'reaction', targetId: msgId, reaction: '❤️', timestamp: Date.now() } as any;
     peerEngine.sendMessage(reactionMsg);
-    setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reaction: '❤️' } : m));
+    setMessages(prev => {
+      const updated = prev.map(m => m.id === msgId ? { ...m, reaction: '❤️' } : m);
+      const remotePeerId = peerEngine.connection?.peer;
+      if (remotePeerId) {
+        localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
   };
 
   const initiateCall = async (isVideo: boolean = false) => {
@@ -662,6 +1099,315 @@ export default function App() {
   // ======== RENDERS ======== 
   return (
     <div className="app-layout">
+      {/* Call Connecting Overlay */}
+      {activeCallingUser && !showPaywall && (
+        <div className="ring-overlay">
+          <div className="ring-radar">
+            <div className="radar-wave"></div>
+            <div className="radar-wave"></div>
+            <div className="radar-wave"></div>
+            <div className="ring-avatar">
+              {activeCallingUser.avatar}
+            </div>
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+            Calling {activeCallingUser.name}...
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem' }}>
+            Establishing secure encrypted line
+          </p>
+          <button 
+            className="call-ctrl-btn end" 
+            onClick={handleCancelCall} 
+            title="Cancel Call"
+            style={{ width: '60px', height: '60px' }}
+          >
+            <PhoneOff size={24} />
+          </button>
+        </div>
+      )}
+
+      {/* Paywall Subscription Modal */}
+      {showPaywall && activeCallingUser && (
+        <div className="paywall-overlay">
+          <div className="paywall-card">
+            <button 
+              className="icon-btn" 
+              style={{ position: 'absolute', top: '15px', right: '15px' }} 
+              onClick={handleCancelCall}
+            >
+              <X size={20} />
+            </button>
+            <div className="paywall-crown">
+              <Crown size={36} />
+            </div>
+            <h3>Unlock Match Calling</h3>
+            <p>
+              Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.
+            </p>
+
+            {/* Plans Selection Grid */}
+            <div className="plans-grid">
+              {[
+                { amount: 30, duration: '1 Day', label: 'Daily Pack', type: 'standard', badge: '' },
+                { amount: 60, duration: '2 Weeks', label: 'Weekly Value', type: 'popular', badge: 'Popular' },
+                { amount: 159, duration: '1 Month', label: 'Monthly Premium', type: 'vip', badge: '👑 VIP Gold' }
+              ].map((plan) => (
+                <div 
+                  key={plan.amount}
+                  className={`plan-card ${plan.type} ${selectedPlan?.amount === plan.amount ? 'active' : ''}`}
+                  onClick={() => handleSelectPlan(plan)}
+                >
+                  {plan.badge && (
+                    <div className={`card-badge ${plan.type}-badge`}>
+                      {plan.badge}
+                    </div>
+                  )}
+                  <div className="plan-card-duration">{plan.duration}</div>
+                  <div className="plan-card-price">₹{plan.amount}</div>
+                  <div className="plan-card-label">{plan.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Payment VPA Settings Panel (collapsible developer option) */}
+            <div style={{ marginTop: '10px', marginBottom: '10px', textAlign: 'left' }}>
+              <button 
+                onClick={() => setShowPaymentSettings(!showPaymentSettings)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.75rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
+              </button>
+              
+              {showPaymentSettings && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  marginTop: '8px',
+                  animation: 'fadeIn 0.2s ease-out'
+                }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Receiver UPI ID (VPA) for testing:
+                  </label>
+                  <input 
+                    type="text" 
+                    value={targetUpiId}
+                    onChange={(e) => setTargetUpiId(e.target.value.trim())}
+                    placeholder="Enter UPI ID (e.g. name@okaxis)"
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-main)',
+                      outline: 'none'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Change this to your own personal UPI VPA (e.g. `yourname@paytm`) to verify the links and QR codes work.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {selectedPlan && (
+              <div className="payment-details-panel">
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
+                  Step 1: Choose Your UPI App
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
+                  ⚠️ Pay exactly ₹1 for testing (Transaction will show ₹1)
+                </div>
+
+                {/* App-specific colorful buttons */}
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  <a 
+                    href={`phonepe://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
+                    className="direct-upi-btn"
+                    style={{ background: 'linear-gradient(135deg, #5f259f, #4d1885)' }}
+                  >
+                    Pay with PhonePe
+                  </a>
+                  <a 
+                    href={`gpay://upi/pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
+                    className="direct-upi-btn"
+                    style={{ background: 'linear-gradient(135deg, #4285f4, #357ae8)' }}
+                  >
+                    Pay with Google Pay
+                  </a>
+                  <a 
+                    href={`paytmmp://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
+                    className="direct-upi-btn"
+                    style={{ background: 'linear-gradient(135deg, #00baf2, #009ed9)' }}
+                  >
+                    Pay with Paytm
+                  </a>
+                  <a 
+                    href={`upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
+                    className="direct-upi-btn"
+                    style={{ background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: 'black' }}
+                  >
+                    Pay with Any Other UPI App
+                  </a>
+                </div>
+
+                {/* Collapsible QR Code Section */}
+                <div className="qr-collapse-container">
+                  <button 
+                    className="qr-collapse-header"
+                    onClick={() => setShowQrCode(!showQrCode)}
+                    style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <span>{showQrCode ? 'Hide QR Code' : 'Scan QR (Pay from another device)'}</span>
+                    <span>{showQrCode ? '▲' : '▼'}</span>
+                  </button>
+                  {showQrCode && (
+                    <div className="qr-collapse-body">
+                      <div className="qr-code-box">
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(
+                            `upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`
+                          )}`} 
+                          alt="UPI QR Code" 
+                          className="qr-code-img"
+                        />
+                      </div>
+                      <button 
+                        className="qr-download-btn"
+                        onClick={() => downloadUpiQrCode(selectedPlan.amount, selectedPlan.label, currentTxnId)}
+                      >
+                        <Download size={14} /> Download QR Code
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Copy UPI VPA Option */}
+                <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'left', fontWeight: 600 }}>
+                    Or manually transfer to UPI ID:
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                    <div style={{
+                      flex: 1,
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      fontSize: '0.8rem',
+                      fontFamily: 'monospace',
+                      color: 'var(--text-main)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {targetUpiId}
+                    </div>
+                    <button
+                      onClick={handleCopyUpi}
+                      style={{
+                        background: copiedUpi ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: copiedUpi ? 'black' : 'var(--text-main)',
+                        padding: '8px 16px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        transition: 'all 0.2s',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <Copy size={14} /> {copiedUpi ? 'Copied!' : 'Copy ID'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {selectedPlan && (
+              <div className="verification-section">
+                <h4>Upload Payment Screenshot</h4>
+                {!paymentScreenshot ? (
+                  <label className="upload-zone">
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setScreenshotFileName(file.name);
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setPaymentScreenshot(event.target?.result as string);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <Upload className="upload-icon" size={24} />
+                    <div className="upload-zone-text">Click to upload or drag screenshot here</div>
+                  </label>
+                ) : (
+                  <div className="screenshot-preview-container">
+                    <img src={paymentScreenshot} alt="Payment screenshot preview" className="screenshot-preview" />
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', wordBreak: 'break-all' }}>
+                      {screenshotFileName}
+                    </div>
+                    <button 
+                      className="remove-screenshot-btn"
+                      onClick={() => {
+                        setPaymentScreenshot(null);
+                        setScreenshotFileName('');
+                        setVerificationSubmitted(false);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
+                <button 
+                  className="submit-verify-btn"
+                  disabled={!paymentScreenshot || verificationSubmitted}
+                  onClick={() => setVerificationSubmitted(true)}
+                  style={{
+                    background: paymentScreenshot ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                    color: paymentScreenshot ? 'black' : 'var(--text-muted)'
+                  }}
+                >
+                  Submit Payment Verification
+                </button>
+
+                {verificationSubmitted && (
+                  <div className="payment-warning-alert">
+                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <span>
+                      Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Left Sidebar (Desktop/Tablet) */}
       <div className="sidebar-left glass">
         <div className="sidebar-header">
@@ -673,6 +1419,16 @@ export default function App() {
           <div className={`nav-item-desktop ${viewMode === 'public' ? 'active' : ''}`} onClick={() => setViewMode('public')}>
             <Users size={20} />
             World Chat
+          </div>
+          <div className={`nav-item-desktop ${viewMode === 'random' ? 'active' : ''}`} onClick={() => {
+            if (!username) {
+              setShowLoginModal(true);
+              return;
+            }
+            setViewMode('random');
+          }}>
+            <Shuffle size={20} />
+            Random Calling
           </div>
           <div className={`nav-item-desktop ${viewMode === 'private' ? 'active' : ''}`} onClick={() => {
             if (!username && viewMode === 'public') {
@@ -982,11 +1738,19 @@ export default function App() {
                 <MalluLogo size={32} />
               </div>
               <div style={{ marginLeft: '6px' }}>
-                <div style={{ fontWeight: 600 }}>{viewMode === 'public' ? 'Mallu Public Chat' : remoteUsername}</div>
+                <div style={{ fontWeight: 600 }}>
+                  {viewMode === 'public' 
+                    ? 'Mallu Public Chat' 
+                    : viewMode === 'random'
+                    ? 'Quick Match Calling'
+                    : remoteUsername}
+                </div>
                 <div className="header-status">
                   <span className="status-dot"></span>
                   {viewMode === 'public'
                     ? `${liveUsers} Online right now`
+                    : viewMode === 'random'
+                    ? `${demoUsers.filter(p => p.status === 'online').length} nearby active users`
                     : (status === 'connected' ? 'Secure Connect' : 'Waiting for User...')}
                 </div>
               </div>
@@ -1003,12 +1767,93 @@ export default function App() {
                 </>
               )}
               {viewMode === 'private' && (
-                <button className="icon-btn" onClick={() => { setViewMode('public'); peerEngine.endCall(); }} title="Leave">
+                <button className="icon-btn" onClick={() => { setViewMode('public'); peerEngine.endCall(); setMessages([]); }} title="Leave">
                   <X size={20} />
                 </button>
               )}
             </div>
           </div>
+
+          {/* Random Calling View */}
+          {viewMode === 'random' && (
+            <div className="random-call-container">
+              <div className="random-call-header">
+                <h2>Find Your Match</h2>
+                <p>Call and talk with Kerala users instantly. End-to-end secure anonymous connections.</p>
+              </div>
+
+              {/* Filters Bar */}
+              <div className="match-filters-bar">
+                <div className="filter-section">
+                  <span className="filter-label">Filter:</span>
+                  <div className="filter-options">
+                    <button 
+                      className={`filter-btn ${genderFilter === 'female' ? 'active' : ''}`}
+                      onClick={() => setGenderFilter('female')}
+                    >
+                      Females
+                    </button>
+                    <button 
+                      className={`filter-btn ${genderFilter === 'male' ? 'active' : ''}`}
+                      onClick={() => setGenderFilter('male')}
+                    >
+                      Males
+                    </button>
+                    <button 
+                      className={`filter-btn ${genderFilter === 'all' ? 'active' : ''}`}
+                      onClick={() => setGenderFilter('all')}
+                    >
+                      Both
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Matches List Grid */}
+              <div className="matches-grid">
+                {demoUsers.filter(profile => {
+                  const matchesGender = genderFilter === 'all' || profile.gender === genderFilter;
+                  return matchesGender;
+                }).map((profile, idx) => {
+                  const distance = userCoords 
+                    ? calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + profile.latOffset, userCoords.lon + profile.lonOffset)
+                    : profile.defaultDist;
+                  const isOnline = profile.status === 'online';
+                  const locationText = getProfileLocation(idx, detectedCity);
+
+                  return (
+                    <div key={profile.id} className="match-card glass">
+                      <div className={`match-avatar-container ${isOnline ? 'online' : ''}`}>
+                        <div className="match-avatar">
+                          {profile.avatar}
+                        </div>
+                        <span className="match-status-indicator"></span>
+                      </div>
+                      
+                      <div className="match-info">
+                        <div className="match-name-row">
+                          <span className="match-name">{profile.name}</span>
+                        </div>
+                        <div className="match-location">
+                          <span>{locationText}</span>
+                          <span>•</span>
+                          <span className="match-distance">{distance} km away</span>
+                        </div>
+                      </div>
+
+                      <button 
+                        className="match-call-btn"
+                        onClick={() => handleCallDemoUser(profile)}
+                        title={`Call ${profile.name}`}
+                      >
+                        <Phone size={18} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Waiting Room State (Private only) */}
           {viewMode === 'private' && status !== 'connected' && (
@@ -1252,6 +2097,16 @@ export default function App() {
               <Users size={24} />
               World
             </div>
+            <div className={`nav-item ${viewMode === 'random' ? 'active' : ''}`} onClick={() => {
+              if (!username) {
+                setShowLoginModal(true);
+                return;
+              }
+              setViewMode('random');
+            }}>
+              <Shuffle size={24} />
+              Call Match
+            </div>
             {!isApp && (
               <a className="nav-item" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
                 <Download size={24} />
@@ -1280,12 +2135,21 @@ export default function App() {
         <div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>
           <p>You are currently in <strong>{viewMode === 'public' ? 'World Chat' : 'Private Space'}</strong>.</p>
 
-          <div style={{ marginTop: '2rem', padding: '1rem', background: 'rgba(74, 222, 128, 0.05)', borderRadius: '12px', border: '1px dashed var(--primary)' }}>
-            <h4 style={{ color: 'var(--primary)', marginBottom: '0.5rem', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Sponsored</h4>
-            <div style={{ fontSize: '0.85rem', lineHeight: '1.5' }}>
-              <strong>Protect your privacy online with Surfshark VPN!</strong><br />
-              <a href="#" style={{ color: 'var(--primary)', textDecoration: 'underline' }}>Get 80% off + 2 months free</a> anonymously with Crypto!
+          <div style={{ marginTop: '2rem', padding: '1.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '16px', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Sponsored</span>
+              <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>Promo</span>
             </div>
+            <div style={{ background: 'white', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <img src="https://twingle.online/twingle-logo.png" alt="Twingle Logo" style={{ height: '40px', objectFit: 'contain' }} />
+            </div>
+            <div style={{ fontSize: '0.85rem', lineHeight: '1.5', textAlign: 'center', color: 'var(--text-main)' }}>
+              <strong>FREE MALLU DATING APP</strong>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Find love, marriage, and friendship in Kerala.</div>
+            </div>
+            <a href="https://twingle.online" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
+              Visit twingle.online
+            </a>
           </div>
 
           <div style={{ marginTop: '2rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid var(--panel-border)', paddingTop: '1rem' }}>

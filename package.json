@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "node server.js",
     "build": "tsc -b && vite build && cp dist/index.html dist/404.html && cp public/malluchat.apk dist/malluchat.apk",
     "lint": "eslint .",
     "preview": "vite preview",
