@@ -415,28 +415,51 @@ export default function App() {
       })
       .catch(err => console.error("Failed to load message history:", err));
 
-    // Setup Global Public Chat via custom WebSocket
-    const ws = new WebSocket(WS_URL);
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.event === 'user_count') {
-          setLiveUsers(400 + (data.count || 0));
-          return;
+    // Setup Global Public Chat via custom WebSocket with auto-reconnect
+    let ws: WebSocket | null = null;
+    let isUnmounted = false;
+    let reconnectTimeout: any = null;
+
+    const connectWebSocket = () => {
+      if (isUnmounted) return;
+      
+      ws = new WebSocket(WS_URL);
+      
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === 'user_count') {
+            setLiveUsers(400 + (data.count || 0));
+            return;
+          }
+          if (data.event === 'message') {
+            try {
+              const payload = JSON.parse(data.message);
+              setPublicMessages(prev => {
+                if (prev.find(m => m.id === payload.id)) return prev;
+                const updated = [...prev, payload];
+                localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+                return updated;
+              });
+            } catch (e) { }
+          }
+        } catch (err) { }
+      };
+
+      ws.onclose = () => {
+        if (!isUnmounted) {
+          console.log("WebSocket disconnected. Reconnecting in 3 seconds...");
+          reconnectTimeout = setTimeout(connectWebSocket, 3000);
         }
-        if (data.event === 'message') {
-          try {
-            const payload = JSON.parse(data.message);
-            setPublicMessages(prev => {
-              if (prev.find(m => m.id === payload.id)) return prev;
-              const updated = [...prev, payload];
-              localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
-              return updated;
-            });
-          } catch (e) { }
-        }
-      } catch (err) { }
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+        ws?.close();
+      };
     };
+
+    connectWebSocket();
 
     // Setup PeerJS for Private Chat only if not initialized
     if (!peerEngine.peer) {
@@ -593,8 +616,10 @@ export default function App() {
     };
 
     return () => {
+      isUnmounted = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
       peerEngine.destroy();
-      ws.close();
+      if (ws) ws.close();
     };
   }, []);
 

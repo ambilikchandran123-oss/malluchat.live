@@ -45,19 +45,36 @@ const server = http.createServer((req, res) => {
   // POST /api/messages -> Post a new message, save to cache, and broadcast
   if (req.method === 'POST' && req.url === '/api/messages') {
     let body = '';
+    let bodyLimitExceeded = false;
+
     req.on('data', chunk => {
+      if (bodyLimitExceeded) return;
       body += chunk.toString();
+      // Impose 10 KB payload size limit to prevent memory exhaustion attacks
+      if (body.length > 10240) {
+        bodyLimitExceeded = true;
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large (limit 10KB)' }));
+        req.destroy();
+      }
     });
+
     req.on('end', () => {
+      if (bodyLimitExceeded) return;
       try {
         const msg = JSON.parse(body);
         if (msg && msg.id) {
           msg.timestamp = msg.timestamp || Date.now();
           messageHistory.push(msg);
 
-          // Keep cache clean immediately
+          // Keep cache clean immediately (limit to last 12 hours)
           const cutoff = Date.now() - 12 * 60 * 60 * 1000;
           messageHistory = messageHistory.filter(m => m.timestamp >= cutoff);
+
+          // Cap the cache to the latest 500 messages to prevent memory bloating
+          if (messageHistory.length > 500) {
+            messageHistory = messageHistory.slice(-500);
+          }
 
           // Broadcast message to all WebSocket subscribers
           const broadcastData = JSON.stringify({ event: 'message', message: JSON.stringify(msg) });
