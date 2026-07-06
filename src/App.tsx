@@ -277,6 +277,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const fetchIPGeolocation = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        const data = await res.json();
+        if (data && data.city) {
+          const city = data.city;
+          const region = data.region || 'Kerala';
+          setDetectedCity(`${city}, ${region}`);
+          setLocationStatus('success');
+        } else {
+          setDetectedCity('Kochi, Kerala');
+          setLocationStatus('failed');
+        }
+      } catch (e) {
+        console.error("IP Geolocation failed:", e);
+        setDetectedCity('Kochi, Kerala');
+        setLocationStatus('failed');
+      }
+    };
+
     if (viewMode === 'random' && locationStatus === 'idle') {
       setLocationStatus('requesting');
       if ('geolocation' in navigator) {
@@ -294,22 +314,20 @@ export default function App() {
                 const countyOrState = data.address.state || 'Kerala';
                 setDetectedCity(`${city}, ${countyOrState}`);
               } else {
-                setDetectedCity('Kochi, Kerala');
+                await fetchIPGeolocation();
               }
             } catch (e) {
-              setDetectedCity('Kochi, Kerala');
+              await fetchIPGeolocation();
             }
           },
-          (error) => {
+          async (error) => {
             console.error("Geolocation error:", error);
-            setLocationStatus('failed');
-            setDetectedCity('Kochi, Kerala');
+            await fetchIPGeolocation();
           },
           { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
         );
       } else {
-        setLocationStatus('failed');
-        setDetectedCity('Kochi, Kerala');
+        fetchIPGeolocation();
       }
     }
   }, [viewMode, locationStatus]);
