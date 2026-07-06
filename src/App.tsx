@@ -13,8 +13,9 @@ const sentSound = new Audio('/sent.mp3');
 const receivedSound = new Audio('/received.mp3');
 
 const isDev = window.location.port === '5173';
-const BACKEND_URL = isDev ? 'http://localhost:3000' : `${window.location.protocol}//${window.location.host}`;
-const WS_URL = isDev ? 'ws://localhost:3000/ws' : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
+const BACKEND_URL = isDev ? 'http://localhost:3000' : 'https://ntfy.sh/malluchat_global_room_v4';
+const WS_URL = isDev ? 'ws://localhost:3000/ws' : 'wss://ntfy.sh/malluchat_global_room_v4/ws';
+const POST_URL = isDev ? `${BACKEND_URL}/api/messages` : BACKEND_URL;
 
 const GoogleAdMessage = () => {
   useEffect(() => {
@@ -418,10 +419,33 @@ export default function App() {
 
   useEffect(() => {
     // Fetch cached messages from our hosted backend to load history
-    fetch(`${BACKEND_URL}/api/messages`)
-      .then(res => res.json())
-      .then(messages => {
-        if (Array.isArray(messages) && messages.length > 0) {
+    const fetchHistoryUrl = isDev 
+      ? `${BACKEND_URL}/api/messages` 
+      : 'https://ntfy.sh/malluchat_global_room_v4/json?poll=1';
+
+    fetch(fetchHistoryUrl)
+      .then(res => isDev ? res.json() : res.text())
+      .then(data => {
+        let messages: any[] = [];
+        if (isDev) {
+          if (Array.isArray(data)) messages = data;
+        } else {
+          // Parse JSON Lines from ntfy
+          messages = (data as string).split('\n')
+            .filter(line => line.trim() !== '')
+            .map(line => {
+              try {
+                const parsed = JSON.parse(line);
+                if (parsed.event === 'message') {
+                  return JSON.parse(parsed.message);
+                }
+              } catch (e) {}
+              return null;
+            })
+            .filter(m => m !== null);
+        }
+
+        if (messages.length > 0) {
           setPublicMessages(prev => {
             const newMsgs = messages.filter(fm => !prev.some(pm => pm.id === fm.id));
             if (newMsgs.length === 0) return prev;
@@ -831,7 +855,7 @@ export default function App() {
                   return updated;
                 });
 
-                fetch(`${BACKEND_URL}/api/messages`, {
+                fetch(POST_URL, {
                   method: 'POST',
                   body: JSON.stringify(publicMsg)
                 }).catch(() => { });
@@ -1014,7 +1038,7 @@ export default function App() {
       localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
       return updated;
     });
-    fetch(`${BACKEND_URL}/api/messages`, {
+    fetch(POST_URL, {
       method: 'POST',
       body: JSON.stringify(msg)
     }).catch(() => { });
@@ -1041,7 +1065,7 @@ export default function App() {
       localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
       return updated;
     });
-    fetch(`${BACKEND_URL}/api/messages`, {
+    fetch(POST_URL, {
       method: 'POST',
       body: JSON.stringify(adMsg)
     }).catch(() => { });
