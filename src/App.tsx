@@ -1165,7 +1165,7 @@ export default function App() {
 
   // ======== RENDERS ======== 
   return (
-    <div className="app-layout">
+    <main className="app-layout">
       {/* Call Connecting Overlay */}
       {activeCallingUser && !showPaywall && (
         <div className="ring-overlay">
@@ -2229,6 +2229,6 @@ export default function App() {
       </div>
 
       <audio ref={remoteAudioRef} autoPlay className="hidden-audio" />
-    </div>
+    </main>
   );
 }
