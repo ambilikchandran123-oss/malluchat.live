@@ -364,7 +364,7 @@ export default function App() {
   };
 
   const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
-    const upiUrl = `upi://pay?pa=${encodeURIComponent(targetUpiId)}&pn=MalluChat&mc=5734&tr=${txnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${encodeURIComponent(planLabel)}`;
+    const upiUrl = `upi://pay?pa=${encodeURIComponent(targetUpiId)}&pn=MalluChat&mc=5734&tr=${txnId}&am=${amount}&cu=INR&tn=MalluChat%20Plan%20${encodeURIComponent(planLabel)}`;
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(upiUrl)}`;
     try {
       const response = await fetch(qrUrl);
@@ -1292,42 +1292,10 @@ export default function App() {
             {selectedPlan && (
               <div className="payment-details-panel">
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
-                  Step 1: Choose Your UPI App
+                  Step 1: Scan the QR Code to Pay
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
-                  ⚠️ Pay exactly ₹1 for testing (Transaction will show ₹1)
-                </div>
-
-                {/* App-specific colorful buttons */}
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                  <a 
-                    href={`phonepe://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
-                    className="direct-upi-btn"
-                    style={{ background: 'linear-gradient(135deg, #5f259f, #4d1885)' }}
-                  >
-                    Pay with PhonePe
-                  </a>
-                  <a 
-                    href={`gpay://upi/pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
-                    className="direct-upi-btn"
-                    style={{ background: 'linear-gradient(135deg, #4285f4, #357ae8)' }}
-                  >
-                    Pay with Google Pay
-                  </a>
-                  <a 
-                    href={`paytmmp://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
-                    className="direct-upi-btn"
-                    style={{ background: 'linear-gradient(135deg, #00baf2, #009ed9)' }}
-                  >
-                    Pay with Paytm
-                  </a>
-                  <a 
-                    href={`upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`}
-                    className="direct-upi-btn"
-                    style={{ background: 'linear-gradient(135deg, #fbbf24, #d97706)', color: 'black' }}
-                  >
-                    Pay with Any Other UPI App
-                  </a>
+                  ⚠️ Pay exactly ₹${selectedPlan.amount} (Transaction will show ₹${selectedPlan.amount})
                 </div>
 
                 {/* Collapsible QR Code Section */}
@@ -1345,7 +1313,7 @@ export default function App() {
                       <div className="qr-code-box">
                         <img 
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(
-                            `upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=1&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`
+                            `upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=${selectedPlan.amount}&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`
                           )}`} 
                           alt="UPI QR Code" 
                           className="qr-code-img"
