@@ -11,6 +11,7 @@
   --danger: #ef4444;
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   --glass-effect: blur(16px);
+  --username-color: #38bdf8;
 }
 
 .light-mode {
@@ -23,6 +24,7 @@
   --primary-hover: #059669;
   --message-sent: #d1fae5;
   --message-received: rgba(243, 244, 246, 0.8);
+  --username-color: #0284c7;
 }
 
 * {

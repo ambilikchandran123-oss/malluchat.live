@@ -1773,13 +1773,17 @@ export default function App() {
                 <MalluLogo size={32} />
               </div>
               <div style={{ marginLeft: '6px' }}>
-                <div style={{ fontWeight: 600 }}>
-                  {viewMode === 'public' 
-                    ? 'Mallu Public Chat' 
-                    : viewMode === 'random'
-                    ? 'Quick Match Calling'
-                    : remoteUsername}
-                </div>
+                {viewMode === 'private' ? (
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--primary)' }}>
+                    {remoteUsername}
+                  </div>
+                ) : (
+                  <div style={{ fontWeight: 600 }}>
+                    {viewMode === 'public' 
+                      ? 'Mallu Public Chat' 
+                      : 'Quick Match Calling'}
+                  </div>
+                )}
                 <div className="header-status">
                   <span className="status-dot"></span>
                   {viewMode === 'public'
@@ -2009,14 +2013,21 @@ export default function App() {
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       {!isMine && msg.type !== 'ad' && (
                         <span
-                          style={{ marginLeft: '4px', opacity: 0.6, cursor: viewMode === 'public' ? 'pointer' : 'default', textDecoration: viewMode === 'public' ? 'underline' : 'none' }}
+                          style={{
+                            marginLeft: '4px',
+                            cursor: viewMode === 'public' ? 'pointer' : 'default',
+                            textDecoration: viewMode === 'public' ? 'underline' : 'none'
+                          }}
                           onClick={() => {
                             if (viewMode === 'public') {
                               requestPrivateChat(msg.senderId, msg.senderName);
                             }
                           }}
                         >
-                          • {msg.senderName}
+                          <span style={{ opacity: 0.6 }}> • </span>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--username-color)' }}>
+                            {msg.senderName}
+                          </span>
                           {viewMode === 'public' && <span style={{ fontSize: '0.6rem', marginLeft: '2px', color: 'var(--primary)', fontWeight: 'bold' }}>(Private Chat)</span>}
                         </span>
                       )}
