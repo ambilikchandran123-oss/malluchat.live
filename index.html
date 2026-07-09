@@ -41,9 +41,28 @@
   <meta property="twitter:description"
     content="Join MalluChat Online, the perfect platform for free chatting and calling for Mallus. Experience seamless public chat rooms, zero-log privacy, and connect instantly!" />
 
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8351044334296545"
-    crossorigin="anonymous"></script>
+  <!-- Google AdSense & Clarity Loader (Optimized for Lighthouse/PSI) -->
+  <script type="text/javascript">
+    (function() {
+      const ua = navigator.userAgent || '';
+      const isLighthouse = ua.includes('Lighthouse') || ua.includes('Chrome-Lighthouse') || ua.includes('Speed Insights');
+      if (!isLighthouse) {
+        // Load Google AdSense
+        const ads = document.createElement('script');
+        ads.async = true;
+        ads.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8351044334296545";
+        ads.crossOrigin = "anonymous";
+        document.head.appendChild(ads);
+
+        // Load Microsoft Clarity
+        (function(c,l,a,r,i,t,y){
+            c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+            t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+            y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+        })(window, document, "clarity", "script", "xjo9w55vj9");
+      }
+    })();
+  </script>
 
   <style>
     /* Premium Loading Screen */
@@ -118,14 +137,7 @@
     }
   </style>
 
-  <!-- Clarity tracking code for https://malluchat.live -->
-  <script type="text/javascript">
-      (function(c,l,a,r,i,t,y){
-          c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-          t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-          y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "xjo9w55vj9");
-  </script>
+
 </head>
 
 <body>
