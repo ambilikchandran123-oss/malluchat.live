@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "start": "node server.js",
-    "build": "tsc -b && vite build && cp dist/index.html dist/404.html && cp public/malluchat.apk dist/malluchat.apk",
+    "build": "tsc -b && vite build && cp dist/index.html dist/404.html && cp public/malluchat.apk dist/malluchat.apk && node generate-routes.js",
     "lint": "eslint .",
     "preview": "vite preview",
     "build:mobile": "tsc -b && vite build && npx cap sync"
