@@ -100,28 +100,24 @@ const IDUKKI_SUB_LOCS = ['Thodupuzha', 'Munnar', 'Kattappana', 'Adimali', 'Nedum
 const WAYANAD_SUB_LOCS = ['Kalpetta', 'Sulthan Bathery', 'Mananthavady', 'Meppadi', 'Vythiri', 'Lakkidi', 'Ambalavayal'];
 
 const GENERIC_SUB_LOCS = [
-  'Town Junction',
-  'Bus Stand Area',
-  'Bypass Road',
-  'Temple Road',
-  'Church Junction',
-  'Civil Station',
-  'Market Road',
-  'College Road',
-  'Hospital Junction',
-  'Railway Station Road',
-  'Post Office Junction',
-  'High School Area',
-  'Hillview Colony',
-  'Green Valley',
-  'Lakeview Ward',
-  'Kottaram Junction'
+  'Aluva', 'Cherthala', 'Kayamkulam', 'Changanassery', 'Kottarakkara',
+  'Punalur', 'Adoor', 'Thiruvalla', 'Thodupuzha', 'Pala',
+  'Ettumanoor', 'Kattappana', 'Chalakudy', 'Irinjalakuda', 'Kodungallur',
+  'Kunnamkulam', 'Shoranur', 'Ottapalam', 'Pattambi', 'Mannarkkad',
+  'Kottakkal', 'Manjeri', 'Perinthalmanna', 'Tirur', 'Koduvally',
+  'Thamarassery', 'Mukkam', 'Mavoor', 'Feroke', 'Thalassery',
+  'Payyanur', 'Taliparamba', 'Kanhangad', 'Nileshwar', 'Kalpetta'
 ];
 
 
-const getProfileLocation = (index: number, cityName: string) => {
+const getProfileLocation = (index: number, cityName: string, distance: number) => {
   const cleanCity = cityName.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
+  
+  // If the user is very close, show them in the same city/sub-location
+  if (distance < 2.0) {
+    return cleanCity;
+  }
   
   let subLocList = GENERIC_SUB_LOCS;
   if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
@@ -155,7 +151,7 @@ const getProfileLocation = (index: number, cityName: string) => {
   }
   
   const subLoc = subLocList[index % subLocList.length];
-  return `${subLoc}, ${cleanCity}`;
+  return subLoc;
 };
 
 const DEMO_PROFILES = [
@@ -1923,7 +1919,7 @@ export default function App() {
                     ? calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + profile.latOffset, userCoords.lon + profile.lonOffset)
                     : profile.defaultDist;
                   const isOnline = profile.status === 'online';
-                  const locationText = getProfileLocation(idx, detectedCity);
+                  const locationText = getProfileLocation(idx, detectedCity, distance);
 
                   return (
                     <div key={profile.id} className="match-card glass">
