@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -110,7 +110,7 @@ const getProfileLocation = (index: number, cityName: string) => {
   }
   
   const subLoc = subLocList[index % subLocList.length];
-  return subLoc;
+  return `${subLoc}, ${cleanCity}`;
 };
 
 const DEMO_PROFILES = [
@@ -1820,6 +1820,26 @@ export default function App() {
                 <h2>Find Your Match</h2>
                 <p>Call and talk with Kerala users instantly. End-to-end secure anonymous connections.</p>
               </div>
+
+              {/* Location Status Banner */}
+              {locationStatus === 'requesting' && (
+                <div className="location-status-banner loading">
+                  <span style={{ display: 'inline-block', animation: 'pulse 1.5s infinite' }}>⏳</span>
+                  <span>Detecting your location for accurate matches...</span>
+                </div>
+              )}
+              {locationStatus === 'success' && (
+                <div className="location-status-banner">
+                  <MapPin size={14} style={{ color: 'var(--primary)' }} />
+                  <span>Detected Location: <strong>{detectedCity}</strong> (showing nearest Kerala matches)</span>
+                </div>
+              )}
+              {locationStatus === 'failed' && (
+                <div className="location-status-banner loading" style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
+                  <AlertTriangle size={14} />
+                  <span>Could not detect location. Showing default matches (Kochi, Kerala).</span>
+                </div>
+              )}
 
               {/* Filters Bar */}
               <div className="match-filters-bar">
