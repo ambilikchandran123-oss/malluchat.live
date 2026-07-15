@@ -89,7 +89,34 @@ const TRIVANDRUM_SUB_LOCS = ['Kazhakoottam', 'Kowdiar', 'Pattom', 'Vellayambalam
 const THRISSUR_SUB_LOCS = ['Kanattukara', 'Punkunnam', 'Ramavarmapuram', 'Ollur', 'Kuriachira', 'Ayyanthole', 'Kolazhy', 'Mannuthy', 'Koorkanchery', 'Guruvayur', 'Patturaikkal', 'Nadathara', 'Peringavu', 'Cheroor', 'Vilvattom'];
 const MALAPPURAM_SUB_LOCS = ['Kottakkal', 'Manjeri', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Nilambur', 'Kondotty', 'Valanchery', 'Edappal', 'Tanur', 'Wandoor', 'Melattur', 'Anakkayam', 'Mongam', 'Down Hill'];
 
-const GENERIC_SUB_LOCS = ['Sector 1', 'West Side', 'Sector 4', 'South Layout', 'North Extension', 'East Ward', 'Phase 2', 'Green Valley', 'Greenwood', 'Riverview', 'Lakeside', 'Oakridge', 'Willow Creek', 'Pine Hills', 'Maple Wood', 'Sunnyvale'];
+const KOLLAM_SUB_LOCS = ['Chathannoor', 'Kottarakkara', 'Karunagappally', 'Chinnakada', 'Kadavoor', 'Kureepuzha', 'Polayathode', 'Eravipuram', 'Kollam Beach', 'Punalur', 'Pathanapuram', 'Kundara'];
+const ALAPPUZHA_SUB_LOCS = ['Cherthala', 'Kayamkulam', 'Haripad', 'Ambalappuzha', 'Mavelikkara', 'Mannar', 'Punnamada', 'Kalavoor', 'Mararikulam', 'Kuttanad', 'Aroor'];
+const KOTTAYAM_SUB_LOCS = ['Changanassery', 'Pala', 'Kanjirappally', 'Ettumanoor', 'Vaikom', 'Kumarakom', 'Pampady', 'Ponkunnam', 'Manarcad', 'Chingavanam'];
+const PALAKKAD_SUB_LOCS = ['Ottapalam', 'Shoranur', 'Mannarkkad', 'Pattambi', 'Cherpulassery', 'Kallekkad', 'Olappamanna', 'Malampuzha', 'Chittur', 'Alathur'];
+const KANNUR_SUB_LOCS = ['Thalassery', 'Payyanur', 'Taliparamba', 'Iritty', 'Mattannur', 'Payyambalam', 'Thottada', 'Chala', 'Valapattanam', 'Edakkad'];
+const KASARAGOD_SUB_LOCS = ['Kanhangad', 'Nileshwar', 'Kumbla', 'Uppala', 'Manjeshwar', 'Cheruvathur', 'Bekal', 'Trikaripur'];
+const PATHANAMTHITTA_SUB_LOCS = ['Adoor', 'Thiruvalla', 'Pandalam', 'Ranni', 'Konni', 'Mallappally', 'Kozhenchery', 'Pathanamthitta Town'];
+const IDUKKI_SUB_LOCS = ['Thodupuzha', 'Munnar', 'Kattappana', 'Adimali', 'Nedumkandam', 'Kumily', 'Vagamon', 'Peermade'];
+const WAYANAD_SUB_LOCS = ['Kalpetta', 'Sulthan Bathery', 'Mananthavady', 'Meppadi', 'Vythiri', 'Lakkidi', 'Ambalavayal'];
+
+const GENERIC_SUB_LOCS = [
+  'Town Junction',
+  'Bus Stand Area',
+  'Bypass Road',
+  'Temple Road',
+  'Church Junction',
+  'Civil Station',
+  'Market Road',
+  'College Road',
+  'Hospital Junction',
+  'Railway Station Road',
+  'Post Office Junction',
+  'High School Area',
+  'Hillview Colony',
+  'Green Valley',
+  'Lakeview Ward',
+  'Kottaram Junction'
+];
 
 
 const getProfileLocation = (index: number, cityName: string) => {
@@ -107,6 +134,24 @@ const getProfileLocation = (index: number, cityName: string) => {
     subLocList = THRISSUR_SUB_LOCS;
   } else if (lowerCity.includes('malappuram')) {
     subLocList = MALAPPURAM_SUB_LOCS;
+  } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
+    subLocList = KOLLAM_SUB_LOCS;
+  } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
+    subLocList = ALAPPUZHA_SUB_LOCS;
+  } else if (lowerCity.includes('kottayam')) {
+    subLocList = KOTTAYAM_SUB_LOCS;
+  } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
+    subLocList = PALAKKAD_SUB_LOCS;
+  } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
+    subLocList = KANNUR_SUB_LOCS;
+  } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
+    subLocList = KASARAGOD_SUB_LOCS;
+  } else if (lowerCity.includes('pathanamthitta')) {
+    subLocList = PATHANAMTHITTA_SUB_LOCS;
+  } else if (lowerCity.includes('idukki')) {
+    subLocList = IDUKKI_SUB_LOCS;
+  } else if (lowerCity.includes('wayanad')) {
+    subLocList = WAYANAD_SUB_LOCS;
   }
   
   const subLoc = subLocList[index % subLocList.length];
