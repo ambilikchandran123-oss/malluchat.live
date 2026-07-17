@@ -584,6 +584,7 @@ body {
 
 .chat-input {
   flex: 1;
+  min-width: 0;
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--panel-border);
   padding: 0.8rem 1rem;
@@ -637,6 +638,7 @@ body {
   justify-content: center;
   cursor: pointer;
   transition: var(--transition);
+  flex-shrink: 0;
 }
 
 .send-btn:hover {

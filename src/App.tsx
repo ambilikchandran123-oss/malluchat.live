@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -2511,9 +2511,6 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    <button className="icon-btn" style={{ padding: '8px' }} onClick={() => alert('Attachments coming soon!')}>
-                      <Plus size={22} />
-                    </button>
                     <input
                       type="text"
                       className="chat-input"
