@@ -110,7 +110,7 @@ const GENERIC_SUB_LOCS = [
 ];
 
 
-const getProfileLocation = (index: number, cityName: string, distance: number) => {
+const getProfileLocation = (index: number, cityName: string, _distance: number) => {
   const cleanCity = cityName.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
 
@@ -1818,7 +1818,7 @@ export default function App() {
             setViewMode('random');
           }}>
             <Shuffle size={20} />
-            Random Calling
+            Nearby Users
           </div>
           <div className={`nav-item-desktop ${viewMode === 'private' ? 'active' : ''}`} onClick={() => {
             if (!username && viewMode === 'public') {
@@ -2216,7 +2216,7 @@ export default function App() {
                   <div style={{ fontWeight: 600 }}>
                     {viewMode === 'public'
                       ? 'Mallu Public Chat'
-                      : 'Quick Match Calling'}
+                      : 'Nearby Users'}
                   </div>
                 )}
                 <div className="header-status">
@@ -2588,7 +2588,7 @@ export default function App() {
               setViewMode('random');
             }}>
               <Shuffle size={24} />
-              Call Match
+              Nearby Users
             </div>
             {!isApp && (
               <a className="nav-item" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
