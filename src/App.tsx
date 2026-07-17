@@ -113,12 +113,7 @@ const GENERIC_SUB_LOCS = [
 const getProfileLocation = (index: number, cityName: string, distance: number) => {
   const cleanCity = cityName.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
-  
-  // If the user is very close, show them in the same city/sub-location
-  if (distance < 2.0) {
-    return cleanCity;
-  }
-  
+
   let subLocList = GENERIC_SUB_LOCS;
   if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
     subLocList = KOCHI_SUB_LOCS;
@@ -149,7 +144,7 @@ const getProfileLocation = (index: number, cityName: string, distance: number) =
   } else if (lowerCity.includes('wayanad')) {
     subLocList = WAYANAD_SUB_LOCS;
   }
-  
+
   const subLoc = subLocList[index % subLocList.length];
   return subLoc;
 };
@@ -201,11 +196,11 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   const R = 6371; // km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return (R * c).toFixed(1);
 };
 
@@ -218,9 +213,7 @@ export default function App() {
   const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
   const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
-  const [searchTimeout, setSearchTimeout] = useState<any | null>(null);
   const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
-  const [searchStatus, setSearchStatus] = useState<string>('Looking for online Malayalam speakers nearby...');
   const randomMatchActiveRef = useRef<string | null>(null);
 
   // Random Calling states
@@ -243,13 +236,9 @@ export default function App() {
 
   // Video Call States
   const [isCameraOff, setIsCameraOff] = useState<boolean>(true);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [callDuration, setCallDuration] = useState<number>(0);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-
-  // Match Fallback Options
-  const [fallbackToDemo, setFallbackToDemo] = useState<boolean>(true);
 
   // Fake accurate-looking live users count starting at 400
   const [liveUsers, setLiveUsers] = useState<number>(400);
@@ -319,16 +308,11 @@ export default function App() {
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  const isSearchingRef = useRef(isSearching);
-  isSearchingRef.current = isSearching;
   const inCallRef = useRef(inCall);
   inCallRef.current = inCall;
   const genderFilterRef = useRef(genderFilter);
   genderFilterRef.current = genderFilter;
   const isMatchInitiatorRef = useRef<boolean>(false);
-  const fallbackToDemoRef = useRef(fallbackToDemo);
-  fallbackToDemoRef.current = fallbackToDemo;
-  const fallbackTimeoutRef = useRef<any>(null);
   const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const preAcquiredStreamRef = useRef<MediaStream | null>(null);
   const matchConnectionTimeoutRef = useRef<any>(null);
@@ -420,119 +404,10 @@ export default function App() {
     }
   };
 
-  const triggerInstantDemoMatch = () => {
-    if (searchTimeout) clearInterval(searchTimeout);
-    if (fallbackTimeoutRef.current) {
-      clearTimeout(fallbackTimeoutRef.current);
-      fallbackTimeoutRef.current = null;
-    }
-    
-    // Pick a random online demo user matching the gender filter if possible
-    const eligibleProfiles = demoUsers.filter(p => {
-      const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
-      return matchesGender && p.status === 'online';
-    });
-    const selectedProfile = eligibleProfiles.length > 0
-      ? eligibleProfiles[Math.floor(Math.random() * eligibleProfiles.length)]
-      : demoUsers.find(p => p.status === 'online') || demoUsers[0];
-
-    setIsSearching(false);
-    setActiveCallingUser(selectedProfile);
-    setInCall(true);
-
-    // Attach stream to local preview
-    const stream = preAcquiredStreamRef.current;
-    if (stream && localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-    }
-  };
-
-  const handleStartRandomCall = () => {
-    if (!username) {
-      setShowLoginModal(true);
-      return;
-    }
-
-    const startSearching = () => {
-      setIsSearching(true);
-      setSearchStatus('Looking for online Malayalam speakers nearby...');
-      if (searchTimeout) clearInterval(searchTimeout);
-      if (fallbackTimeoutRef.current) {
-        clearTimeout(fallbackTimeoutRef.current);
-        fallbackTimeoutRef.current = null;
-      }
-
-      const sendSearchSignal = () => {
-        const signal = {
-          id: uuidv4(),
-          senderId: myId,
-          senderName: username,
-          type: 'match_searching',
-          timestamp: Date.now()
-        };
-        fetch(POST_URL, {
-          method: 'POST',
-          body: JSON.stringify(signal)
-        }).catch(() => {});
-      };
-
-      sendSearchSignal();
-
-      const interval = setInterval(() => {
-        if (isSearchingRef.current && !inCallRef.current) {
-          setSearchStatus('No waiting users found. Retrying match...');
-          sendSearchSignal();
-        } else {
-          clearInterval(interval);
-        }
-      }, 5000);
-      setSearchTimeout(interval);
-
-      // Schedule auto-fallback to demo profile if alone after 4 seconds
-      fallbackTimeoutRef.current = setTimeout(() => {
-        if (isSearchingRef.current && !inCallRef.current && fallbackToDemoRef.current) {
-          console.log("Fallback timeout fired. Connecting to simulated profile...");
-          triggerInstantDemoMatch();
-        }
-      }, 4000);
-    };
-
-    // Pre-acquire stream inside click gesture (crucial for mobile permission validation)
-    const activeStream = preAcquiredStreamRef.current;
-    const hasActiveTracks = activeStream && activeStream.getTracks().some(t => t.readyState === 'live');
-
-    if (hasActiveTracks) {
-      startSearching();
-    } else {
-      setSearchStatus('Requesting microphone access...');
-      setIsSearching(true);
-      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-        .then((stream) => {
-          const pTrack = createPlaceholderVideoTrack();
-          placeholderVideoTrackRef.current = pTrack;
-          stream.addTrack(pTrack);
-          
-          preAcquiredStreamRef.current = stream;
-          peerEngine.localStream = stream;
-          startSearching();
-        })
-        .catch((err) => {
-          console.error("Microphone access denied:", err);
-          setIsSearching(false);
-          alert("Microphone permission is required for random calling.");
-        });
-    }
-  };
-
   const handleEndCall = (stopTracks = true) => {
-    if (searchTimeout) clearInterval(searchTimeout);
     if (matchConnectionTimeoutRef.current) {
       clearTimeout(matchConnectionTimeoutRef.current);
       matchConnectionTimeoutRef.current = null;
-    }
-    if (fallbackTimeoutRef.current) {
-      clearTimeout(fallbackTimeoutRef.current);
-      fallbackTimeoutRef.current = null;
     }
     peerEngine.endCall(stopTracks);
     setInCall(false);
@@ -550,9 +425,19 @@ export default function App() {
   };
 
   const handleSkipCall = () => {
+    const currentCallingUserId = activeCallingUser?.id;
     handleEndCall(false);
     setTimeout(() => {
-      handleStartRandomCall();
+      // Pick a random online demo user matching the gender filter (excluding the current one)
+      const eligibleProfiles = demoUsers.filter(p => {
+        const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
+        return matchesGender && p.status === 'online' && p.id !== currentCallingUserId;
+      });
+      const selectedProfile = eligibleProfiles.length > 0
+        ? eligibleProfiles[Math.floor(Math.random() * eligibleProfiles.length)]
+        : demoUsers.find(p => p.status === 'online' && p.id !== currentCallingUserId) || demoUsers[0];
+
+      handleCallDemoUser(selectedProfile);
     }, 300);
   };
 
@@ -560,7 +445,7 @@ export default function App() {
     navigator.mediaDevices.getUserMedia({ video: true })
       .then((videoStream) => {
         const videoTrack = videoStream.getVideoTracks()[0];
-        
+
         if (peerEngine.localStream) {
           // Remove existing video track (e.g. placeholder canvas)
           peerEngine.localStream.getVideoTracks().forEach(t => {
@@ -633,7 +518,7 @@ export default function App() {
       setGenderFilter('all');
       return;
     }
-    
+
     if (isPremium) {
       setGenderFilter(filter);
     } else {
@@ -647,11 +532,8 @@ export default function App() {
     handleEndCall(true);
     if (ringingTimeout) clearTimeout(ringingTimeout);
     setRingingTimeout(null);
-    if (searchTimeout) clearInterval(searchTimeout);
-    setSearchTimeout(null);
     ringtone.stop();
     setActiveCallingUser(null);
-    setIsSearching(false);
     setShowPaywall(false);
     setSelectedPlan(null);
     setPaymentScreenshot(null);
@@ -668,19 +550,19 @@ export default function App() {
   const handleVerifyPayment = () => {
     setVerificationSubmitted(true);
     setIsVerifyingPayment(true);
-    
+
     // Simulate transaction validation
     setTimeout(() => {
       setIsVerifyingPayment(false);
       setIsPremium(true);
       localStorage.setItem('malluchat_premium', 'true');
       setShowPaywall(false);
-      
+
       // Clean up dial / call triggers
       if (ringingTimeout) clearTimeout(ringingTimeout);
       setRingingTimeout(null);
       ringtone.stop();
-      
+
       alert("🎉 Premium access unlocked successfully! Enjoy unlimited random calls & gender filters.");
 
       if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
@@ -726,10 +608,10 @@ export default function App() {
     setPaymentScreenshot(null);
     setScreenshotFileName('');
     setVerificationSubmitted(false);
-    
+
     const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
     setCurrentTxnId(newTxnId);
-    
+
     downloadUpiQrCode(plan.amount, plan.label, newTxnId);
   };
 
@@ -758,8 +640,8 @@ export default function App() {
 
   useEffect(() => {
     // Fetch cached messages from our hosted backend to load history
-    const fetchHistoryUrl = isDev 
-      ? `${BACKEND_URL}/api/messages` 
+    const fetchHistoryUrl = isDev
+      ? `${BACKEND_URL}/api/messages`
       : 'https://ntfy.sh/malluchat_global_room_v4/json?poll=1';
 
     fetch(fetchHistoryUrl)
@@ -778,7 +660,7 @@ export default function App() {
                 if (parsed.event === 'message') {
                   return JSON.parse(parsed.message);
                 }
-              } catch (e) {}
+              } catch (e) { }
               return null;
             })
             .filter(m => m !== null);
@@ -799,32 +681,7 @@ export default function App() {
       })
       .catch(err => console.error("Failed to load message history:", err));
 
-    const handleReceiveMatchSignal = (payload: any) => {
-      if (isSearchingRef.current && !inCallRef.current && payload.senderId !== myId) {
-        console.log("Match request received from:", payload.senderName, payload.senderId);
-        if (myId > payload.senderId) {
-          console.log("Initiating call connection to:", payload.senderId);
-          setIsSearching(false);
-          isMatchInitiatorRef.current = true;
-          peerEngine.connectToPeer(payload.senderId, {
-            type: 'random_match',
-            senderName: usernameRef.current
-          });
 
-          // Start 6-second connection watchdog
-          if (matchConnectionTimeoutRef.current) clearTimeout(matchConnectionTimeoutRef.current);
-          matchConnectionTimeoutRef.current = setTimeout(() => {
-            if (!inCallRef.current && isSearchingRef.current === false) {
-              console.warn("Match connection timed out on initiator. Self-healing back to search queue...");
-              handleEndCall(true);
-              setTimeout(() => {
-                handleStartRandomCall();
-              }, 500);
-            }
-          }, 6000);
-        }
-      }
-    };
 
     // Setup Global Public Chat via custom WebSocket with auto-reconnect
     let ws: WebSocket | null = null;
@@ -833,9 +690,9 @@ export default function App() {
 
     const connectWebSocket = () => {
       if (isUnmounted) return;
-      
+
       ws = new WebSocket(WS_URL);
-      
+
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -846,10 +703,7 @@ export default function App() {
           if (data.event === 'message') {
             try {
               const payload = JSON.parse(data.message);
-              if (payload.type === 'match_searching') {
-                handleReceiveMatchSignal(payload);
-                return;
-              }
+
               setPublicMessages(prev => {
                 if (prev.find(m => m.id === payload.id)) return prev;
                 const updated = [...prev, payload];
@@ -894,14 +748,9 @@ export default function App() {
 
     peerEngine.onConnected = () => {
       setStatus('connected');
-      if (fallbackTimeoutRef.current) {
-        clearTimeout(fallbackTimeoutRef.current);
-        fallbackTimeoutRef.current = null;
-      }
       const remotePeerId = peerEngine.connection?.peer;
 
       if (isMatchInitiatorRef.current && remotePeerId) {
-        setIsSearching(false);
         randomMatchActiveRef.current = remotePeerId;
 
         // Send matchmaking handshake immediately over P2P data connection
@@ -971,29 +820,6 @@ export default function App() {
     };
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
-      if (isSearchingRef.current) {
-        if (fallbackTimeoutRef.current) {
-          clearTimeout(fallbackTimeoutRef.current);
-          fallbackTimeoutRef.current = null;
-        }
-        randomMatchActiveRef.current = conn.peer;
-        peerEngine.setupConnection(conn);
-        setIsSearching(false);
-
-        // Start 6-second connection watchdog
-        if (matchConnectionTimeoutRef.current) clearTimeout(matchConnectionTimeoutRef.current);
-        matchConnectionTimeoutRef.current = setTimeout(() => {
-          if (!inCallRef.current && isSearchingRef.current === false) {
-            console.warn("Match connection timed out on receiver. Self-healing back to search queue...");
-            handleEndCall(true);
-            setTimeout(() => {
-              handleStartRandomCall();
-            }, 500);
-          }
-        }, 6000);
-        return;
-      }
-
       // Automatically reject incoming generic connections if already chatting with someone else
       if (peerEngine.connection && peerEngine.connection.open && peerEngine.connection.peer !== conn.peer) {
         conn.close();
@@ -1084,38 +910,6 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
-      if (isSearchingRef.current || call.peer === randomMatchActiveRef.current) {
-        if (fallbackTimeoutRef.current) {
-          clearTimeout(fallbackTimeoutRef.current);
-          fallbackTimeoutRef.current = null;
-        }
-        setIsSearching(false);
-        const stream = preAcquiredStreamRef.current;
-        if (stream) {
-          call.on('stream', (rStream) => {
-            setRemoteStream(rStream);
-          });
-          call.answer(stream);
-          peerEngine.callConnection = call;
-          setInCall(true);
-          if (matchConnectionTimeoutRef.current) {
-            clearTimeout(matchConnectionTimeoutRef.current);
-            matchConnectionTimeoutRef.current = null;
-          }
-          setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
-        } else {
-          console.warn("No pre-acquired stream found for auto-answering receiver A");
-          call.answer();
-          setInCall(true);
-          if (matchConnectionTimeoutRef.current) {
-            clearTimeout(matchConnectionTimeoutRef.current);
-            matchConnectionTimeoutRef.current = null;
-          }
-          setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
-        }
-        return;
-      }
-
       if (window.confirm(`Incoming ${isVideo ? 'video' : 'voice'} call! Accept?`)) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo }).then((stream) => {
           if (!isVideo) {
@@ -1153,10 +947,6 @@ export default function App() {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       peerEngine.destroy();
       if (ws) ws.close();
-      if (fallbackTimeoutRef.current) {
-        clearTimeout(fallbackTimeoutRef.current);
-        fallbackTimeoutRef.current = null;
-      }
     };
   }, []);
 
@@ -1298,7 +1088,7 @@ export default function App() {
         setShowLoginModal(true);
         return;
       }
-      
+
       // Sniff supported MIME type (Safari iOS compatibility)
       let mimeType = 'audio/webm';
       let extension = 'webm';
@@ -1444,7 +1234,7 @@ export default function App() {
           setProgress((audio.currentTime / audio.duration) * 100);
         }
       };
-      
+
       const handleLoadedMetadata = () => {
         if (audio.duration) {
           setDuration(audio.duration);
@@ -1674,7 +1464,7 @@ export default function App() {
         placeholderVideoTrackRef.current = pTrack;
         stream.addTrack(pTrack);
       }
-      
+
       const remoteId = peerEngine.connection?.peer;
       if (!remoteId) return alert('No active peer connected');
 
@@ -1726,54 +1516,6 @@ export default function App() {
   // ======== RENDERS ======== 
   return (
     <main className="app-layout">
-      {/* Searching Match Overlay */}
-      {isSearching && (
-        <div className="ring-overlay">
-          <div className="ring-radar">
-            <div className="radar-wave"></div>
-            <div className="radar-wave"></div>
-            <div className="radar-wave"></div>
-            <div className="ring-avatar" style={{ fontSize: '3rem' }}>
-              🔍
-            </div>
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'white' }}>
-            Finding a Match...
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', textAlign: 'center', maxWidth: '80%' }}>
-            {searchStatus}
-          </p>
-          
-          <button
-            onClick={triggerInstantDemoMatch}
-            style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              marginBottom: '2.5rem',
-              transition: 'background 0.2s',
-              fontWeight: '500'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
-          >
-            ⚡ Match with Simulated User Instantly
-          </button>
-
-          <button 
-            className="call-ctrl-btn end" 
-            onClick={handleCancelCall} 
-            title="Cancel Search"
-            style={{ width: '60px', height: '60px' }}
-          >
-            <PhoneOff size={24} />
-          </button>
-        </div>
-      )}
 
       {/* Call Connecting Overlay */}
       {activeCallingUser && !showPaywall && (
@@ -1792,9 +1534,9 @@ export default function App() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '3rem' }}>
             Establishing secure encrypted line
           </p>
-          <button 
-            className="call-ctrl-btn end" 
-            onClick={handleCancelCall} 
+          <button
+            className="call-ctrl-btn end"
+            onClick={handleCancelCall}
             title="Cancel Call"
             style={{ width: '60px', height: '60px' }}
           >
@@ -1807,9 +1549,9 @@ export default function App() {
       {showPaywall && activeCallingUser && (
         <div className="paywall-overlay">
           <div className="paywall-card">
-            <button 
-              className="icon-btn" 
-              style={{ position: 'absolute', top: '15px', right: '15px' }} 
+            <button
+              className="icon-btn"
+              style={{ position: 'absolute', top: '15px', right: '15px' }}
               onClick={handleCancelCall}
             >
               <X size={20} />
@@ -1819,7 +1561,7 @@ export default function App() {
             </div>
             <h3>{paywallTriggerReason === 'filter' ? 'Unlock Gender Filtering' : 'Unlock Match Calling'}</h3>
             <p>
-              {paywallTriggerReason === 'filter' 
+              {paywallTriggerReason === 'filter'
                 ? 'Unlock Female & Male gender filters to call exactly who you want.'
                 : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
@@ -1831,7 +1573,7 @@ export default function App() {
                 { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'Popular' },
                 { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 Best Value' }
               ].map((plan) => (
-                <div 
+                <div
                   key={plan.amount}
                   className={`plan-card ${plan.type} ${selectedPlan?.amount === plan.amount ? 'active' : ''}`}
                   onClick={() => handleSelectPlan(plan)}
@@ -1850,7 +1592,7 @@ export default function App() {
 
             {/* Payment VPA Settings Panel (collapsible developer option) */}
             <div style={{ marginTop: '10px', marginBottom: '10px', textAlign: 'left' }}>
-              <button 
+              <button
                 onClick={() => setShowPaymentSettings(!showPaymentSettings)}
                 style={{
                   background: 'none',
@@ -1864,7 +1606,7 @@ export default function App() {
               >
                 {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
               </button>
-              
+
               {showPaymentSettings && (
                 <div style={{
                   background: 'rgba(255,255,255,0.03)',
@@ -1877,8 +1619,8 @@ export default function App() {
                   <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
                     Receiver UPI ID (VPA) for testing:
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={targetUpiId}
                     onChange={(e) => setTargetUpiId(e.target.value.trim())}
                     placeholder="Enter UPI ID (e.g. name@okaxis)"
@@ -1911,7 +1653,7 @@ export default function App() {
 
                 {/* Collapsible QR Code Section */}
                 <div className="qr-collapse-container">
-                  <button 
+                  <button
                     className="qr-collapse-header"
                     onClick={() => setShowQrCode(!showQrCode)}
                     style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between' }}
@@ -1922,15 +1664,15 @@ export default function App() {
                   {showQrCode && (
                     <div className="qr-collapse-body">
                       <div className="qr-code-box">
-                        <img 
+                        <img
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(
                             `upi://pay?pa=${targetUpiId}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=${selectedPlan.amount}&cu=INR&tn=MalluChat%20Plan%20${selectedPlan.label}`
-                          )}`} 
-                          alt="UPI QR Code" 
+                          )}`}
+                          alt="UPI QR Code"
                           className="qr-code-img"
                         />
                       </div>
-                      <button 
+                      <button
                         className="qr-download-btn"
                         onClick={() => downloadUpiQrCode(selectedPlan.amount, selectedPlan.label, currentTxnId)}
                       >
@@ -1991,9 +1733,9 @@ export default function App() {
                 <h4>Upload Payment Screenshot</h4>
                 {!paymentScreenshot ? (
                   <label className="upload-zone">
-                    <input 
-                      type="file" 
-                      accept="image/*" 
+                    <input
+                      type="file"
+                      accept="image/*"
                       style={{ display: 'none' }}
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -2016,7 +1758,7 @@ export default function App() {
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', wordBreak: 'break-all' }}>
                       {screenshotFileName}
                     </div>
-                    <button 
+                    <button
                       className="remove-screenshot-btn"
                       onClick={() => {
                         setPaymentScreenshot(null);
@@ -2029,7 +1771,7 @@ export default function App() {
                   </div>
                 )}
 
-                <button 
+                <button
                   className="submit-verify-btn"
                   disabled={!paymentScreenshot || verificationSubmitted}
                   onClick={handleVerifyPayment}
@@ -2045,8 +1787,8 @@ export default function App() {
                   <div className="payment-warning-alert">
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                     <span>
-                      {isVerifyingPayment 
-                        ? 'Verifying transaction with UPI gateway, please wait...' 
+                      {isVerifyingPayment
+                        ? 'Verifying transaction with UPI gateway, please wait...'
                         : 'Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.'}
                     </span>
                   </div>
@@ -2374,7 +2116,7 @@ export default function App() {
                     Connected via secure P2P line
                   </p>
                 </div>
-                
+
                 {/* Local camera preview */}
                 <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
 
@@ -2434,7 +2176,7 @@ export default function App() {
                     </p>
                   </div>
                 )}
-                
+
                 {/* Local camera preview */}
                 <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
 
@@ -2472,8 +2214,8 @@ export default function App() {
                   </div>
                 ) : (
                   <div style={{ fontWeight: 600 }}>
-                    {viewMode === 'public' 
-                      ? 'Mallu Public Chat' 
+                    {viewMode === 'public'
+                      ? 'Mallu Public Chat'
                       : 'Quick Match Calling'}
                   </div>
                 )}
@@ -2482,8 +2224,8 @@ export default function App() {
                   {viewMode === 'public'
                     ? `${liveUsers} Online right now`
                     : viewMode === 'random'
-                    ? `${demoUsers.filter(p => p.status === 'online').length} nearby active users`
-                    : (status === 'connected' ? 'Secure Connect' : 'Waiting for User...')}
+                      ? `${demoUsers.filter(p => p.status === 'online').length} nearby active users`
+                      : (status === 'connected' ? 'Secure Connect' : 'Waiting for User...')}
                 </div>
               </div>
             </div>
@@ -2509,47 +2251,25 @@ export default function App() {
           {/* Random Calling View */}
           {viewMode === 'random' && (
             <div className="random-call-container">
-              {/* Start Random Call Action */}
-              <div className="quick-random-action-container" style={{ flexDirection: 'column', gap: '8px' }}>
-                <button 
-                  className="quick-random-call-btn"
-                  onClick={handleStartRandomCall}
-                >
-                  <Shuffle size={18} className="pulse-icon" style={{ marginRight: '6px' }} />
-                  <span>free random calling</span>
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <input 
-                    type="checkbox" 
-                    id="demo-fallback-checkbox"
-                    checked={fallbackToDemo} 
-                    onChange={(e) => setFallbackToDemo(e.target.checked)} 
-                    style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
-                  />
-                  <label htmlFor="demo-fallback-checkbox" style={{ cursor: 'pointer', userSelect: 'none' }}>
-                    Simulate matches if alone (auto-fallback)
-                  </label>
-                </div>
-              </div>
 
               {/* Filters Bar */}
               <div className="match-filters-bar">
                 <div className="filter-section">
                   <span className="filter-label">Filter:</span>
                   <div className="filter-options">
-                    <button 
+                    <button
                       className={`filter-btn ${genderFilter === 'female' ? 'active' : ''}`}
                       onClick={() => handleSelectGenderFilter('female')}
                     >
                       Females {!isPremium && <Crown size={12} style={{ display: 'inline', marginLeft: '4px', color: '#fbbf24', verticalAlign: 'middle' }} />}
                     </button>
-                    <button 
+                    <button
                       className={`filter-btn ${genderFilter === 'male' ? 'active' : ''}`}
                       onClick={() => handleSelectGenderFilter('male')}
                     >
                       Males {!isPremium && <Crown size={12} style={{ display: 'inline', marginLeft: '4px', color: '#fbbf24', verticalAlign: 'middle' }} />}
                     </button>
-                    <button 
+                    <button
                       className={`filter-btn ${genderFilter === 'all' ? 'active' : ''}`}
                       onClick={() => handleSelectGenderFilter('all')}
                     >
@@ -2561,46 +2281,55 @@ export default function App() {
 
               {/* Matches List Grid */}
               <div className="matches-grid">
-                {demoUsers.filter(profile => {
-                  const matchesGender = genderFilter === 'all' || profile.gender === genderFilter;
-                  return matchesGender;
-                }).map((profile, idx) => {
-                  const distance = userCoords 
-                    ? calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + profile.latOffset, userCoords.lon + profile.lonOffset)
-                    : profile.defaultDist;
-                  const isOnline = profile.status === 'online';
-                  const locationText = getProfileLocation(idx, detectedCity, distance);
+                {demoUsers
+                  .filter(profile => {
+                    const matchesGender = genderFilter === 'all' || profile.gender === genderFilter;
+                    const isOnline = profile.status === 'online';
+                    return matchesGender && isOnline;
+                  })
+                  .map(profile => {
+                    const distance = userCoords
+                      ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + profile.latOffset, userCoords.lon + profile.lonOffset))
+                      : profile.defaultDist;
+                    return { ...profile, calculatedDistance: distance };
+                  })
+                  .sort((a, b) => a.calculatedDistance - b.calculatedDistance)
+                  .slice(0, 3)
+                  .map((profile, idx) => {
+                    const distance = profile.calculatedDistance;
+                    const isOnline = profile.status === 'online';
+                    const locationText = getProfileLocation(idx, detectedCity, distance);
 
-                  return (
-                    <div key={profile.id} className="match-card glass">
-                      <div className={`match-avatar-container ${isOnline ? 'online' : ''}`}>
-                        <div className="match-avatar">
-                          {profile.avatar}
+                    return (
+                      <div key={profile.id} className="match-card glass">
+                        <div className={`match-avatar-container ${isOnline ? 'online' : ''}`}>
+                          <div className="match-avatar">
+                            {profile.avatar}
+                          </div>
+                          <span className="match-status-indicator"></span>
                         </div>
-                        <span className="match-status-indicator"></span>
-                      </div>
-                      
-                      <div className="match-info">
-                        <div className="match-name-row">
-                          <span className="match-name">{profile.name}</span>
-                        </div>
-                        <div className="match-location">
-                          <span>{locationText}</span>
-                          <span>•</span>
-                          <span className="match-distance">{distance} km away</span>
-                        </div>
-                      </div>
 
-                      <button 
-                        className="match-call-btn"
-                        onClick={() => handleCallDemoUser(profile)}
-                        title={`Call ${profile.name}`}
-                      >
-                        <Phone size={18} />
-                      </button>
-                    </div>
-                  );
-                })}
+                        <div className="match-info">
+                          <div className="match-name-row">
+                            <span className="match-name">{profile.name}</span>
+                          </div>
+                          <div className="match-location">
+                            <span>{locationText}</span>
+                            <span>•</span>
+                            <span className="match-distance">{distance} km away</span>
+                          </div>
+                        </div>
+
+                        <button
+                          className="match-call-btn"
+                          onClick={() => handleCallDemoUser(profile)}
+                          title={`Call ${profile.name}`}
+                        >
+                          <Phone size={18} />
+                        </button>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
