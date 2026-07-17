@@ -110,43 +110,61 @@ const GENERIC_SUB_LOCS = [
 ];
 
 
-const getProfileLocation = (index: number, cityName: string, _distance: number) => {
+const getProfileLocation = (index: number, cityName: string, distance: number, isNearest3: boolean) => {
   const cleanCity = cityName.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
 
-  let subLocList = GENERIC_SUB_LOCS;
-  if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
-    subLocList = KOCHI_SUB_LOCS;
-  } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
-    subLocList = CALICUT_SUB_LOCS;
-  } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
-    subLocList = TRIVANDRUM_SUB_LOCS;
-  } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
-    subLocList = THRISSUR_SUB_LOCS;
-  } else if (lowerCity.includes('malappuram')) {
-    subLocList = MALAPPURAM_SUB_LOCS;
-  } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
-    subLocList = KOLLAM_SUB_LOCS;
-  } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
-    subLocList = ALAPPUZHA_SUB_LOCS;
-  } else if (lowerCity.includes('kottayam')) {
-    subLocList = KOTTAYAM_SUB_LOCS;
-  } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
-    subLocList = PALAKKAD_SUB_LOCS;
-  } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
-    subLocList = KANNUR_SUB_LOCS;
-  } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
-    subLocList = KASARAGOD_SUB_LOCS;
-  } else if (lowerCity.includes('pathanamthitta')) {
-    subLocList = PATHANAMTHITTA_SUB_LOCS;
-  } else if (lowerCity.includes('idukki')) {
-    subLocList = IDUKKI_SUB_LOCS;
-  } else if (lowerCity.includes('wayanad')) {
-    subLocList = WAYANAD_SUB_LOCS;
-  }
+  if (isNearest3) {
+    let subLocList = GENERIC_SUB_LOCS;
+    if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
+      subLocList = KOCHI_SUB_LOCS;
+    } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
+      subLocList = CALICUT_SUB_LOCS;
+    } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
+      subLocList = TRIVANDRUM_SUB_LOCS;
+    } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
+      subLocList = THRISSUR_SUB_LOCS;
+    } else if (lowerCity.includes('malappuram')) {
+      subLocList = MALAPPURAM_SUB_LOCS;
+    } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
+      subLocList = KOLLAM_SUB_LOCS;
+    } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
+      subLocList = ALAPPUZHA_SUB_LOCS;
+    } else if (lowerCity.includes('kottayam')) {
+      subLocList = KOTTAYAM_SUB_LOCS;
+    } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
+      subLocList = PALAKKAD_SUB_LOCS;
+    } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
+      subLocList = KANNUR_SUB_LOCS;
+    } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
+      subLocList = KASARAGOD_SUB_LOCS;
+    } else if (lowerCity.includes('pathanamthitta')) {
+      subLocList = PATHANAMTHITTA_SUB_LOCS;
+    } else if (lowerCity.includes('idukki')) {
+      subLocList = IDUKKI_SUB_LOCS;
+    } else if (lowerCity.includes('wayanad')) {
+      subLocList = WAYANAD_SUB_LOCS;
+    }
 
-  const subLoc = subLocList[index % subLocList.length];
-  return subLoc;
+    const subLoc = subLocList[index % subLocList.length];
+    return subLoc;
+  } else {
+    // For further users, map to neighboring/other Kerala cities
+    const otherCities = [
+      { name: 'Alappuzha', subLocs: ALAPPUZHA_SUB_LOCS },
+      { name: 'Kottayam', subLocs: KOTTAYAM_SUB_LOCS },
+      { name: 'Thrissur', subLocs: THRISSUR_SUB_LOCS },
+      { name: 'Kollam', subLocs: KOLLAM_SUB_LOCS },
+      { name: 'Palakkad', subLocs: PALAKKAD_SUB_LOCS },
+      { name: 'Pathanamthitta', subLocs: PATHANAMTHITTA_SUB_LOCS }
+    ];
+    // Choose city based on index
+    const cityChoice = otherCities[index % otherCities.length];
+    // Select sub-location in that city based on distance
+    const subLocIndex = Math.floor(distance * 3) % cityChoice.subLocs.length;
+    const subLoc = cityChoice.subLocs[subLocIndex];
+    return `${subLoc}, ${cityChoice.name}`;
+  }
 };
 
 const DEMO_PROFILES = [
@@ -2294,11 +2312,10 @@ export default function App() {
                     return { ...profile, calculatedDistance: distance };
                   })
                   .sort((a, b) => a.calculatedDistance - b.calculatedDistance)
-                  .slice(0, 3)
                   .map((profile, idx) => {
                     const distance = profile.calculatedDistance;
                     const isOnline = profile.status === 'online';
-                    const locationText = getProfileLocation(idx, detectedCity, distance);
+                    const locationText = getProfileLocation(idx, detectedCity, distance, idx < 3);
 
                     return (
                       <div key={profile.id} className="match-card glass">
