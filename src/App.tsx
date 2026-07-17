@@ -248,6 +248,9 @@ export default function App() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
+  // Match Fallback Options
+  const [fallbackToDemo, setFallbackToDemo] = useState<boolean>(true);
+
   // Fake accurate-looking live users count starting at 400
   const [liveUsers, setLiveUsers] = useState<number>(400);
 
@@ -323,6 +326,9 @@ export default function App() {
   const genderFilterRef = useRef(genderFilter);
   genderFilterRef.current = genderFilter;
   const isMatchInitiatorRef = useRef<boolean>(false);
+  const fallbackToDemoRef = useRef(fallbackToDemo);
+  fallbackToDemoRef.current = fallbackToDemo;
+  const fallbackTimeoutRef = useRef<any>(null);
   const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const preAcquiredStreamRef = useRef<MediaStream | null>(null);
   const matchConnectionTimeoutRef = useRef<any>(null);
@@ -414,6 +420,33 @@ export default function App() {
     }
   };
 
+  const triggerInstantDemoMatch = () => {
+    if (searchTimeout) clearInterval(searchTimeout);
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+      fallbackTimeoutRef.current = null;
+    }
+    
+    // Pick a random online demo user matching the gender filter if possible
+    const eligibleProfiles = demoUsers.filter(p => {
+      const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
+      return matchesGender && p.status === 'online';
+    });
+    const selectedProfile = eligibleProfiles.length > 0
+      ? eligibleProfiles[Math.floor(Math.random() * eligibleProfiles.length)]
+      : demoUsers.find(p => p.status === 'online') || demoUsers[0];
+
+    setIsSearching(false);
+    setActiveCallingUser(selectedProfile);
+    setInCall(true);
+
+    // Attach stream to local preview
+    const stream = preAcquiredStreamRef.current;
+    if (stream && localVideoRef.current) {
+      localVideoRef.current.srcObject = stream;
+    }
+  };
+
   const handleStartRandomCall = () => {
     if (!username) {
       setShowLoginModal(true);
@@ -424,6 +457,10 @@ export default function App() {
       setIsSearching(true);
       setSearchStatus('Looking for online Malayalam speakers nearby...');
       if (searchTimeout) clearInterval(searchTimeout);
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
 
       const sendSearchSignal = () => {
         const signal = {
@@ -450,6 +487,14 @@ export default function App() {
         }
       }, 5000);
       setSearchTimeout(interval);
+
+      // Schedule auto-fallback to demo profile if alone after 4 seconds
+      fallbackTimeoutRef.current = setTimeout(() => {
+        if (isSearchingRef.current && !inCallRef.current && fallbackToDemoRef.current) {
+          console.log("Fallback timeout fired. Connecting to simulated profile...");
+          triggerInstantDemoMatch();
+        }
+      }, 4000);
     };
 
     // Pre-acquire stream inside click gesture (crucial for mobile permission validation)
@@ -484,6 +529,10 @@ export default function App() {
     if (matchConnectionTimeoutRef.current) {
       clearTimeout(matchConnectionTimeoutRef.current);
       matchConnectionTimeoutRef.current = null;
+    }
+    if (fallbackTimeoutRef.current) {
+      clearTimeout(fallbackTimeoutRef.current);
+      fallbackTimeoutRef.current = null;
     }
     peerEngine.endCall(stopTracks);
     setInCall(false);
@@ -845,6 +894,10 @@ export default function App() {
 
     peerEngine.onConnected = () => {
       setStatus('connected');
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
       const remotePeerId = peerEngine.connection?.peer;
 
       if (isMatchInitiatorRef.current && remotePeerId) {
@@ -919,6 +972,10 @@ export default function App() {
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
       if (isSearchingRef.current) {
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
         randomMatchActiveRef.current = conn.peer;
         peerEngine.setupConnection(conn);
         setIsSearching(false);
@@ -1028,6 +1085,10 @@ export default function App() {
       const isVideo = callType === 'private-video';
 
       if (isSearchingRef.current || call.peer === randomMatchActiveRef.current) {
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current);
+          fallbackTimeoutRef.current = null;
+        }
         setIsSearching(false);
         const stream = preAcquiredStreamRef.current;
         if (stream) {
@@ -1092,6 +1153,10 @@ export default function App() {
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       peerEngine.destroy();
       if (ws) ws.close();
+      if (fallbackTimeoutRef.current) {
+        clearTimeout(fallbackTimeoutRef.current);
+        fallbackTimeoutRef.current = null;
+      }
     };
   }, []);
 
@@ -1675,9 +1740,30 @@ export default function App() {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'white' }}>
             Finding a Match...
           </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem', textAlign: 'center', maxWidth: '80%' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', textAlign: 'center', maxWidth: '80%' }}>
             {searchStatus}
           </p>
+          
+          <button
+            onClick={triggerInstantDemoMatch}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              marginBottom: '2.5rem',
+              transition: 'background 0.2s',
+              fontWeight: '500'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+          >
+            ⚡ Match with Simulated User Instantly
+          </button>
+
           <button 
             className="call-ctrl-btn end" 
             onClick={handleCancelCall} 
@@ -2424,7 +2510,7 @@ export default function App() {
           {viewMode === 'random' && (
             <div className="random-call-container">
               {/* Start Random Call Action */}
-              <div className="quick-random-action-container">
+              <div className="quick-random-action-container" style={{ flexDirection: 'column', gap: '8px' }}>
                 <button 
                   className="quick-random-call-btn"
                   onClick={handleStartRandomCall}
@@ -2432,6 +2518,18 @@ export default function App() {
                   <Shuffle size={18} className="pulse-icon" style={{ marginRight: '6px' }} />
                   <span>free random calling</span>
                 </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <input 
+                    type="checkbox" 
+                    id="demo-fallback-checkbox"
+                    checked={fallbackToDemo} 
+                    onChange={(e) => setFallbackToDemo(e.target.checked)} 
+                    style={{ cursor: 'pointer', accentColor: 'var(--primary)' }}
+                  />
+                  <label htmlFor="demo-fallback-checkbox" style={{ cursor: 'pointer', userSelect: 'none' }}>
+                    Simulate matches if alone (auto-fallback)
+                  </label>
+                </div>
               </div>
 
               {/* Filters Bar */}
