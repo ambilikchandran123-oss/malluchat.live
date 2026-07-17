@@ -1342,9 +1342,9 @@ export default function App() {
             {/* Plans Selection Grid */}
             <div className="plans-grid">
               {[
-                { amount: 10, duration: '1 Day', label: 'Trial Pack', type: 'standard', badge: '' },
-                { amount: 20, duration: '1 Week', label: 'Weekly Pass', type: 'popular', badge: '' },
-                { amount: 30, duration: '1 Month', label: 'Monthly Premium', type: 'vip', badge: '👑 Popular' }
+                { amount: 60, duration: '1 Week', label: 'Weekly Pass', type: 'standard', badge: '' },
+                { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'Popular' },
+                { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 Best Value' }
               ].map((plan) => (
                 <div 
                   key={plan.amount}
