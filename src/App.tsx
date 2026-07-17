@@ -866,6 +866,7 @@ export default function App() {
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
       if (isSearchingRef.current) {
+        randomMatchActiveRef.current = conn.peer;
         peerEngine.setupConnection(conn);
         setIsSearching(false);
         return;
@@ -2353,13 +2354,6 @@ export default function App() {
           {/* Random Calling View */}
           {viewMode === 'random' && (
             <div className="random-call-container">
-              <div className="random-call-header">
-                <h2>Find Your Match</h2>
-                <p>Call and talk with Kerala users instantly. End-to-end secure anonymous connections.</p>
-              </div>
-
-
-
               {/* Start Random Call Action */}
               <div className="quick-random-action-container">
                 <button 
@@ -2367,7 +2361,7 @@ export default function App() {
                   onClick={handleStartRandomCall}
                 >
                   <Shuffle size={18} className="pulse-icon" style={{ marginRight: '6px' }} />
-                  <span>Start Random Call Now</span>
+                  <span>free random calling</span>
                 </button>
               </div>
 

@@ -1884,7 +1884,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--panel-border);
   background: rgba(74, 222, 128, 0.02);
 }
@@ -1892,18 +1892,17 @@ body {
 .quick-random-call-btn {
   background: linear-gradient(135deg, var(--primary) 0%, #059669 100%);
   color: black;
-  font-weight: 800;
-  font-size: 1.05rem;
-  padding: 14px 28px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 18px;
   border: none;
   border-radius: 50px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+  box-shadow: 0 4px 15px rgba(74, 222, 128, 0.3);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   animation: pulseBtn 2.5s infinite;
 }
