@@ -322,6 +322,7 @@ export default function App() {
   inCallRef.current = inCall;
   const genderFilterRef = useRef(genderFilter);
   genderFilterRef.current = genderFilter;
+  const isMatchInitiatorRef = useRef<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -442,6 +443,7 @@ export default function App() {
     setIsCameraOff(true);
     setRemoteCameraStatus(false);
     setRemoteStream(null);
+    isMatchInitiatorRef.current = false;
   };
 
   const handleSkipCall = () => {
@@ -532,6 +534,7 @@ export default function App() {
     setShowPaymentSettings(false);
     setCurrentTxnId('');
     setShowQrCode(false);
+    isMatchInitiatorRef.current = false;
   };
 
   const handleVerifyPayment = () => {
@@ -674,6 +677,7 @@ export default function App() {
         if (myId > payload.senderId) {
           console.log("Initiating call connection to:", payload.senderId);
           setIsSearching(false);
+          isMatchInitiatorRef.current = true;
           peerEngine.connectToPeer(payload.senderId, {
             type: 'random_match',
             senderName: usernameRef.current
@@ -752,7 +756,7 @@ export default function App() {
       setStatus('connected');
       const remotePeerId = peerEngine.connection?.peer;
 
-      if (isSearchingRef.current && remotePeerId) {
+      if (isMatchInitiatorRef.current && remotePeerId) {
         setIsSearching(false);
         randomMatchActiveRef.current = remotePeerId;
 
@@ -1321,6 +1325,11 @@ export default function App() {
     setReplyingTo(null);
     peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
     sentSound.play().catch(() => { });
+
+    // Dismiss virtual keyboard on smartphones
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   };
 
   const handleSendPublic = () => {
@@ -1351,6 +1360,11 @@ export default function App() {
 
     setPublicInput('');
     setReplyingTo(null);
+
+    // Dismiss virtual keyboard on smartphones
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   };
 
   const handleSendAd = () => {
