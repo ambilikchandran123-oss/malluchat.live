@@ -220,6 +220,8 @@ export default function App() {
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
   const [searchTimeout, setSearchTimeout] = useState<any | null>(null);
   const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
+  const [searchStatus, setSearchStatus] = useState<string>('Looking for online Malayalam speakers nearby...');
+  const randomMatchActiveRef = useRef<string | null>(null);
 
   // Random Calling states
   const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
@@ -400,52 +402,40 @@ export default function App() {
     }
     
     setIsSearching(true);
-    if (searchTimeout) clearTimeout(searchTimeout);
+    setSearchStatus('Looking for online Malayalam speakers nearby...');
+    if (searchTimeout) clearInterval(searchTimeout);
 
-    // Broadcast matchmaking search request over WebSocket
-    const signal = {
-      id: uuidv4(),
-      senderId: myId,
-      senderName: username,
-      type: 'match_searching',
-      timestamp: Date.now()
+    const sendSearchSignal = () => {
+      const signal = {
+        id: uuidv4(),
+        senderId: myId,
+        senderName: username,
+        type: 'match_searching',
+        timestamp: Date.now()
+      };
+      fetch(POST_URL, {
+        method: 'POST',
+        body: JSON.stringify(signal)
+      }).catch(() => {});
     };
-    fetch(POST_URL, {
-      method: 'POST',
-      body: JSON.stringify(signal)
-    }).catch(() => {});
 
-    // 5 second fallback to match with a demo user for FREE
-    const timeout = setTimeout(() => {
+    // Send the first search signal immediately
+    sendSearchSignal();
+
+    // Setup 5-second interval loop to retry match signals
+    const interval = setInterval(() => {
       if (isSearchingRef.current && !inCallRef.current) {
-        setIsSearching(false);
-        const availableUsers = demoUsers.filter(p => {
-          const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
-          const matchesOnline = p.status === 'online';
-          return matchesGender && matchesOnline;
-        });
-        if (availableUsers.length > 0) {
-          const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
-          setActiveCallingUser(randomUser);
-          setInCall(true);
-          navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-            .then((stream) => {
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-              }
-              peerEngine.localStream = stream;
-            })
-            .catch((err) => {
-              console.warn("Media stream access warning:", err);
-            });
-        }
+        setSearchStatus('No waiting users found. Retrying match...');
+        sendSearchSignal();
+      } else {
+        clearInterval(interval);
       }
     }, 5000);
-    setSearchTimeout(timeout);
+    setSearchTimeout(interval);
   };
 
   const handleEndCall = () => {
-    if (searchTimeout) clearTimeout(searchTimeout);
+    if (searchTimeout) clearInterval(searchTimeout);
     peerEngine.endCall();
     setInCall(false);
     setActiveCallingUser(null);
@@ -527,7 +517,7 @@ export default function App() {
   const handleCancelCall = () => {
     if (ringingTimeout) clearTimeout(ringingTimeout);
     setRingingTimeout(null);
-    if (searchTimeout) clearTimeout(searchTimeout);
+    if (searchTimeout) clearInterval(searchTimeout);
     setSearchTimeout(null);
     ringtone.stop();
     setActiveCallingUser(null);
@@ -761,6 +751,7 @@ export default function App() {
 
       if (isSearchingRef.current && remotePeerId) {
         setIsSearching(false);
+        randomMatchActiveRef.current = remotePeerId;
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
           .then((stream) => {
             peerEngine.startCall(remotePeerId, stream)
@@ -817,6 +808,7 @@ export default function App() {
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
       if (isSearchingRef.current && metadata?.type === 'random_match') {
+        randomMatchActiveRef.current = conn.peer;
         peerEngine.setupConnection(conn);
         setRemoteUsername(metadata.senderName || 'Matched User');
         setIsSearching(false);
@@ -906,8 +898,7 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
-      if (isSearchingRef.current) {
-        setIsSearching(false);
+      if (call.peer === randomMatchActiveRef.current) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
           call.answer(stream);
           call.on('stream', (rStream) => {
@@ -949,6 +940,7 @@ export default function App() {
       setIsMicMuted(false);
       setIsCameraOff(true);
       setRemoteCameraStatus(false);
+      randomMatchActiveRef.current = null;
     };
 
     return () => {
@@ -1461,8 +1453,8 @@ export default function App() {
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'white' }}>
             Finding a Match...
           </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem' }}>
-            Looking for online Malayalam speakers nearby
+          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem', textAlign: 'center', maxWidth: '80%' }}>
+            {searchStatus}
           </p>
           <button 
             className="call-ctrl-btn end" 
