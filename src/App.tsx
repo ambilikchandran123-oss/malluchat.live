@@ -323,10 +323,26 @@ export default function App() {
   const genderFilterRef = useRef(genderFilter);
   genderFilterRef.current = genderFilter;
   const isMatchInitiatorRef = useRef<boolean>(false);
+  const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
   const rateLimiter = useRef(new RateLimiter(5, 5000));
+
+  const createPlaceholderVideoTrack = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 640, 480);
+    }
+    const stream = (canvas as any).captureStream(1);
+    const track = stream.getVideoTracks()[0];
+    track.enabled = true;
+    return track;
+  };
 
   useEffect(() => {
     // Pulse Live Users Count
@@ -457,14 +473,26 @@ export default function App() {
     navigator.mediaDevices.getUserMedia({ video: true })
       .then((videoStream) => {
         const videoTrack = videoStream.getVideoTracks()[0];
+        
         if (peerEngine.localStream) {
+          // Remove existing video track (e.g. placeholder canvas)
+          peerEngine.localStream.getVideoTracks().forEach(t => {
+            peerEngine.localStream?.removeTrack(t);
+          });
           peerEngine.localStream.addTrack(videoTrack);
         } else {
           peerEngine.localStream = videoStream;
         }
+
+        // Replace track on existing sender without renegotiating
         if (peerEngine.callConnection?.peerConnection) {
-          peerEngine.callConnection.peerConnection.addTrack(videoTrack, peerEngine.localStream!);
+          const senders = peerEngine.callConnection.peerConnection.getSenders();
+          const videoSender = senders.find(s => s.track?.kind === 'video');
+          if (videoSender) {
+            videoSender.replaceTrack(videoTrack);
+          }
         }
+
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = peerEngine.localStream;
         }
@@ -489,6 +517,18 @@ export default function App() {
         track.stop();
         peerEngine.localStream?.removeTrack(track);
       });
+
+      const pTrack = createPlaceholderVideoTrack();
+      placeholderVideoTrackRef.current = pTrack;
+      peerEngine.localStream.addTrack(pTrack);
+
+      if (peerEngine.callConnection?.peerConnection) {
+        const senders = peerEngine.callConnection.peerConnection.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+        if (videoSender) {
+          videoSender.replaceTrack(pTrack);
+        }
+      }
     }
     setIsCameraOff(true);
     peerEngine.sendMessage({
@@ -773,14 +813,13 @@ export default function App() {
 
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
           .then((stream) => {
-            peerEngine.startCall(remotePeerId, stream)
-              .then((call) => {
-                if (call) {
-                  call.on('stream', (rStream) => {
-                    setRemoteStream(rStream);
-                  });
-                }
-              });
+            const pTrack = createPlaceholderVideoTrack();
+            placeholderVideoTrackRef.current = pTrack;
+            stream.addTrack(pTrack);
+
+            peerEngine.startCall(remotePeerId, stream, (rStream) => {
+              setRemoteStream(rStream);
+            });
             peerEngine.localStream = stream;
             setInCall(true);
             setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
@@ -922,12 +961,17 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
-      if (call.peer === randomMatchActiveRef.current) {
+      if (isSearchingRef.current || call.peer === randomMatchActiveRef.current) {
+        setIsSearching(false);
         navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-          call.answer(stream);
+          const pTrack = createPlaceholderVideoTrack();
+          placeholderVideoTrackRef.current = pTrack;
+          stream.addTrack(pTrack);
+
           call.on('stream', (rStream) => {
             setRemoteStream(rStream);
           });
+          call.answer(stream);
           peerEngine.callConnection = call;
           peerEngine.localStream = stream;
           setInCall(true);
@@ -943,10 +987,16 @@ export default function App() {
 
       if (window.confirm(`Incoming ${isVideo ? 'video' : 'voice'} call! Accept?`)) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo }).then((stream) => {
-          call.answer(stream);
+          if (!isVideo) {
+            const pTrack = createPlaceholderVideoTrack();
+            placeholderVideoTrackRef.current = pTrack;
+            stream.addTrack(pTrack);
+          }
+
           call.on('stream', (rStream) => {
             setRemoteStream(rStream);
           });
+          call.answer(stream);
           peerEngine.callConnection = call;
           peerEngine.localStream = stream;
           setInCall(true);
@@ -1484,16 +1534,25 @@ export default function App() {
   const initiateCall = async (isVideo: boolean = false) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
-      // we use the actual connected peer id
+      if (!isVideo) {
+        const pTrack = createPlaceholderVideoTrack();
+        placeholderVideoTrackRef.current = pTrack;
+        stream.addTrack(pTrack);
+      }
+      
       const remoteId = peerEngine.connection?.peer;
       if (!remoteId) return alert('No active peer connected');
 
-      const call = await peerEngine.startCall(remoteId, stream, { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } });
+      const call = peerEngine.startCall(
+        remoteId,
+        stream,
+        (rStream) => {
+          setRemoteStream(rStream);
+        },
+        { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+      );
 
       if (call) {
-        call.on('stream', (rStream) => {
-          setRemoteStream(rStream);
-        });
         setInCall(true);
       }
     } catch (err) {

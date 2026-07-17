@@ -155,11 +155,14 @@ export class PeerEngine {
         }
     }
 
-    async startCall(remoteId: string, stream: MediaStream, options?: any): Promise<MediaConnection | null> {
+    startCall(remoteId: string, stream: MediaStream, onRemoteStream: (stream: MediaStream) => void, options?: any): MediaConnection | null {
         if (!this.peer) return null;
         this.localStream = stream;
         const call = this.peer.call(remoteId, stream, options);
         this.callConnection = call;
+        if (call) {
+            call.on('stream', onRemoteStream);
+        }
         return call;
     }
 
