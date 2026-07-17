@@ -355,8 +355,11 @@ export default function App() {
     setActiveCallingUser(user);
     ringtone.start();
 
-    if (isPremium) {
-      // If premium, connect call after 3 seconds of ringing
+    // Free call if user is premium OR genderFilter is 'all' (No gender filter selected)
+    const isFreeCall = isPremium || genderFilter === 'all';
+
+    if (isFreeCall) {
+      // Connect call after 3 seconds of ringing
       const timeout = setTimeout(() => {
         ringtone.stop();
         setInCall(true);
@@ -373,7 +376,7 @@ export default function App() {
       }, 3000);
       setRingingTimeout(timeout);
     } else {
-      // If not premium, show paywall after 1.8 seconds
+      // If not premium and using filtered calls, show paywall after 1.8 seconds
       const timeout = setTimeout(() => {
         setPaywallTriggerReason('calling');
         setShowPaywall(true);
