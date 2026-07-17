@@ -324,6 +324,7 @@ export default function App() {
   genderFilterRef.current = genderFilter;
   const isMatchInitiatorRef = useRef<boolean>(false);
   const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const preAcquiredStreamRef = useRef<MediaStream | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -417,53 +418,85 @@ export default function App() {
       setShowLoginModal(true);
       return;
     }
-    
-    setIsSearching(true);
-    setSearchStatus('Looking for online Malayalam speakers nearby...');
-    if (searchTimeout) clearInterval(searchTimeout);
 
-    const sendSearchSignal = () => {
-      const signal = {
-        id: uuidv4(),
-        senderId: myId,
-        senderName: username,
-        type: 'match_searching',
-        timestamp: Date.now()
+    const startSearching = () => {
+      setIsSearching(true);
+      setSearchStatus('Looking for online Malayalam speakers nearby...');
+      if (searchTimeout) clearInterval(searchTimeout);
+
+      const sendSearchSignal = () => {
+        const signal = {
+          id: uuidv4(),
+          senderId: myId,
+          senderName: username,
+          type: 'match_searching',
+          timestamp: Date.now()
+        };
+        fetch(POST_URL, {
+          method: 'POST',
+          body: JSON.stringify(signal)
+        }).catch(() => {});
       };
-      fetch(POST_URL, {
-        method: 'POST',
-        body: JSON.stringify(signal)
-      }).catch(() => {});
+
+      sendSearchSignal();
+
+      const interval = setInterval(() => {
+        if (isSearchingRef.current && !inCallRef.current) {
+          setSearchStatus('No waiting users found. Retrying match...');
+          sendSearchSignal();
+        } else {
+          clearInterval(interval);
+        }
+      }, 5000);
+      setSearchTimeout(interval);
     };
 
-    // Send the first search signal immediately
-    sendSearchSignal();
+    // Pre-acquire stream inside click gesture (crucial for mobile permission validation)
+    const activeStream = preAcquiredStreamRef.current;
+    const hasActiveTracks = activeStream && activeStream.getTracks().some(t => t.readyState === 'live');
 
-    // Setup 5-second interval loop to retry match signals
-    const interval = setInterval(() => {
-      if (isSearchingRef.current && !inCallRef.current) {
-        setSearchStatus('No waiting users found. Retrying match...');
-        sendSearchSignal();
-      } else {
-        clearInterval(interval);
-      }
-    }, 5000);
-    setSearchTimeout(interval);
+    if (hasActiveTracks) {
+      startSearching();
+    } else {
+      setSearchStatus('Requesting microphone access...');
+      setIsSearching(true);
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        .then((stream) => {
+          const pTrack = createPlaceholderVideoTrack();
+          placeholderVideoTrackRef.current = pTrack;
+          stream.addTrack(pTrack);
+          
+          preAcquiredStreamRef.current = stream;
+          peerEngine.localStream = stream;
+          startSearching();
+        })
+        .catch((err) => {
+          console.error("Microphone access denied:", err);
+          setIsSearching(false);
+          alert("Microphone permission is required for random calling.");
+        });
+    }
   };
 
-  const handleEndCall = () => {
+  const handleEndCall = (stopTracks = true) => {
     if (searchTimeout) clearInterval(searchTimeout);
-    peerEngine.endCall();
+    peerEngine.endCall(stopTracks);
     setInCall(false);
     setActiveCallingUser(null);
     setIsCameraOff(true);
     setRemoteCameraStatus(false);
     setRemoteStream(null);
     isMatchInitiatorRef.current = false;
+    if (stopTracks) {
+      if (preAcquiredStreamRef.current) {
+        preAcquiredStreamRef.current.getTracks().forEach(t => t.stop());
+        preAcquiredStreamRef.current = null;
+      }
+    }
   };
 
   const handleSkipCall = () => {
-    handleEndCall();
+    handleEndCall(false);
     setTimeout(() => {
       handleStartRandomCall();
     }, 300);
@@ -557,6 +590,7 @@ export default function App() {
   };
 
   const handleCancelCall = () => {
+    handleEndCall(true);
     if (ringingTimeout) clearTimeout(ringingTimeout);
     setRingingTimeout(null);
     if (searchTimeout) clearInterval(searchTimeout);
@@ -811,24 +845,18 @@ export default function App() {
           } as any);
         }, 300);
 
-        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-          .then((stream) => {
-            const pTrack = createPlaceholderVideoTrack();
-            placeholderVideoTrackRef.current = pTrack;
-            stream.addTrack(pTrack);
-
-            peerEngine.startCall(remotePeerId, stream, (rStream) => {
-              setRemoteStream(rStream);
-            });
-            peerEngine.localStream = stream;
-            setInCall(true);
-            setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
-          })
-          .catch((err) => {
-            console.error("Failed to acquire stream on connect:", err);
-            setInCall(true);
-            setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
+        const stream = preAcquiredStreamRef.current;
+        if (stream) {
+          peerEngine.startCall(remotePeerId, stream, (rStream) => {
+            setRemoteStream(rStream);
           });
+          setInCall(true);
+          setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
+        } else {
+          console.error("No pre-acquired stream found for matchmaking initiator B");
+          setInCall(true);
+          setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
+        }
         return;
       }
 
@@ -964,25 +992,21 @@ export default function App() {
 
       if (isSearchingRef.current || call.peer === randomMatchActiveRef.current) {
         setIsSearching(false);
-        navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
-          const pTrack = createPlaceholderVideoTrack();
-          placeholderVideoTrackRef.current = pTrack;
-          stream.addTrack(pTrack);
-
+        const stream = preAcquiredStreamRef.current;
+        if (stream) {
           call.on('stream', (rStream) => {
             setRemoteStream(rStream);
           });
           call.answer(stream);
           peerEngine.callConnection = call;
-          peerEngine.localStream = stream;
           setInCall(true);
           setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
-        }).catch((err) => {
-          console.error("Auto answer failed:", err);
+        } else {
+          console.warn("No pre-acquired stream found for auto-answering receiver A");
           call.answer();
           setInCall(true);
           setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
-        });
+        }
         return;
       }
 
@@ -2234,7 +2258,7 @@ export default function App() {
                   <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
                     <Shuffle size={28} />
                   </button>
-                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
+                  <button className="call-ctrl-btn end" onClick={() => handleEndCall()} title="End Call">
                     <PhoneOff size={28} />
                   </button>
                 </div>
@@ -2294,7 +2318,7 @@ export default function App() {
                   <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
                     <Shuffle size={28} />
                   </button>
-                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
+                  <button className="call-ctrl-btn end" onClick={() => handleEndCall()} title="End Call">
                     <PhoneOff size={28} />
                   </button>
                 </div>

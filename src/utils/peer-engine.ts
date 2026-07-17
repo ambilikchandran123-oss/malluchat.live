@@ -166,12 +166,12 @@ export class PeerEngine {
         return call;
     }
 
-    endCall() {
+    endCall(stopTracks = true) {
         if (this.callConnection) {
             this.callConnection.close();
             this.callConnection = null;
         }
-        if (this.localStream) {
+        if (stopTracks && this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
         }
