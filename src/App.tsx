@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -221,9 +221,8 @@ export default function App() {
 
   // Random Calling states
   const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
-  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [detectedCity, setDetectedCity] = useState<string>('Kochi, Kerala');
-  const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'success' | 'failed'>('idle');
+  const [userCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [detectedCity] = useState<string>('Kochi, Kerala');
   const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
   const [showPaywall, setShowPaywall] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
@@ -324,61 +323,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const fetchIPGeolocation = async () => {
-      try {
-        const res = await fetch('https://ipapi.co/json/');
-        const data = await res.json();
-        if (data && data.city) {
-          const city = data.city;
-          const region = data.region || 'Kerala';
-          setDetectedCity(`${city}, ${region}`);
-          setLocationStatus('success');
-        } else {
-          setDetectedCity('Kochi, Kerala');
-          setLocationStatus('failed');
-        }
-      } catch (e) {
-        console.error("IP Geolocation failed:", e);
-        setDetectedCity('Kochi, Kerala');
-        setLocationStatus('failed');
-      }
-    };
 
-    if (viewMode === 'random' && locationStatus === 'idle') {
-      setLocationStatus('requesting');
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserCoords({ lat: latitude, lon: longitude });
-            setLocationStatus('success');
-            
-            try {
-              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
-              const data = await res.json();
-              if (data && data.address) {
-                const city = data.address.city || data.address.town || data.address.village || data.address.suburb || data.address.county || 'Kochi';
-                const countyOrState = data.address.state || 'Kerala';
-                setDetectedCity(`${city}, ${countyOrState}`);
-              } else {
-                await fetchIPGeolocation();
-              }
-            } catch (e) {
-              await fetchIPGeolocation();
-            }
-          },
-          async (error) => {
-            console.error("Geolocation error:", error);
-            await fetchIPGeolocation();
-          },
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-        );
-      } else {
-        fetchIPGeolocation();
-      }
-    }
-  }, [viewMode, locationStatus]);
 
   // Call simulation duration effect
   useEffect(() => {
@@ -2054,25 +1999,7 @@ export default function App() {
                 <p>Call and talk with Kerala users instantly. End-to-end secure anonymous connections.</p>
               </div>
 
-              {/* Location Status Banner */}
-              {locationStatus === 'requesting' && (
-                <div className="location-status-banner loading">
-                  <span style={{ display: 'inline-block', animation: 'pulse 1.5s infinite' }}>⏳</span>
-                  <span>Detecting your location for accurate matches...</span>
-                </div>
-              )}
-              {locationStatus === 'success' && (
-                <div className="location-status-banner">
-                  <MapPin size={14} style={{ color: 'var(--primary)' }} />
-                  <span>Detected Location: <strong>{detectedCity}</strong> (showing nearest Kerala matches)</span>
-                </div>
-              )}
-              {locationStatus === 'failed' && (
-                <div className="location-status-banner loading" style={{ color: 'var(--danger)', background: 'rgba(239, 68, 68, 0.05)', borderColor: 'rgba(239, 68, 68, 0.2)' }}>
-                  <AlertTriangle size={14} />
-                  <span>Could not detect location. Showing default matches (Kochi, Kerala).</span>
-                </div>
-              )}
+
 
               {/* Start Random Call Action */}
               <div className="quick-random-action-container">
