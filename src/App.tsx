@@ -214,8 +214,13 @@ export default function App() {
   const [username, setUsername] = useState<string>('');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // Premium paywall states
+  const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
+  const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
+
   // Random Calling states
-  const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('female');
+  const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [detectedCity, setDetectedCity] = useState<string>('Kochi, Kerala');
   const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'success' | 'failed'>('idle');
@@ -235,6 +240,7 @@ export default function App() {
 
   // Video Call States
   const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
+  const [callDuration, setCallDuration] = useState<number>(0);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -374,6 +380,28 @@ export default function App() {
     }
   }, [viewMode, locationStatus]);
 
+  // Call simulation duration effect
+  useEffect(() => {
+    let interval: any;
+    if (inCall && activeCallingUser && activeCallingUser.id?.startsWith('demo-')) {
+      setCallDuration(0);
+      interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [inCall, activeCallingUser]);
+
+  const formatCallTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleCallDemoUser = (user: any) => {
     if (!username) {
       setShowLoginModal(true);
@@ -381,11 +409,80 @@ export default function App() {
     }
     setActiveCallingUser(user);
     ringtone.start();
-    const timeout = setTimeout(() => {
+
+    if (isPremium) {
+      // If premium, connect call after 3 seconds of ringing
+      const timeout = setTimeout(() => {
+        ringtone.stop();
+        setInCall(true);
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          .then((stream) => {
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = stream;
+            }
+            peerEngine.localStream = stream;
+          })
+          .catch((err) => {
+            console.warn("Camera permission declined, proceeding with voice call only", err);
+          });
+      }, 3000);
+      setRingingTimeout(timeout);
+    } else {
+      // If not premium, show paywall after 1.8 seconds
+      const timeout = setTimeout(() => {
+        setPaywallTriggerReason('calling');
+        setShowPaywall(true);
+        ringtone.stop();
+      }, 1800);
+      setRingingTimeout(timeout);
+    }
+  };
+
+  const handleStartRandomCall = () => {
+    if (!username) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    // Filter active online demo users based on current genderFilter
+    const availableUsers = demoUsers.filter(p => {
+      const matchesGender = genderFilter === 'all' || p.gender === genderFilter;
+      const matchesOnline = p.status === 'online';
+      return matchesGender && matchesOnline;
+    });
+    
+    if (availableUsers.length === 0) {
+      alert("No active users found matching your filters. Try selecting 'Both'.");
+      return;
+    }
+    
+    // Pick a random user
+    const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
+    
+    // Call the user
+    handleCallDemoUser(randomUser);
+  };
+
+  const handleEndCall = () => {
+    peerEngine.endCall();
+    setInCall(false);
+    setActiveCallingUser(null);
+  };
+
+  const handleSelectGenderFilter = (filter: 'female' | 'male' | 'all') => {
+    if (filter === 'all') {
+      setGenderFilter('all');
+      return;
+    }
+    
+    if (isPremium) {
+      setGenderFilter(filter);
+    } else {
+      setPaywallTriggerReason('filter');
+      // Set a dummy profile explaining the filter so card doesn't crash on activeCallingUser properties
+      setActiveCallingUser({ id: 'dummy-filter', name: filter === 'female' ? 'Females Only' : 'Males Only', avatar: '⭐', gender: filter });
       setShowPaywall(true);
-      ringtone.stop();
-    }, 1800);
-    setRingingTimeout(timeout);
+    }
   };
 
   const handleCancelCall = () => {
@@ -398,10 +495,48 @@ export default function App() {
     setPaymentScreenshot(null);
     setScreenshotFileName('');
     setVerificationSubmitted(false);
+    setIsVerifyingPayment(false);
     setCopiedUpi(false);
     setShowPaymentSettings(false);
     setCurrentTxnId('');
     setShowQrCode(false);
+  };
+
+  const handleVerifyPayment = () => {
+    setVerificationSubmitted(true);
+    setIsVerifyingPayment(true);
+    
+    // Simulate transaction validation
+    setTimeout(() => {
+      setIsVerifyingPayment(false);
+      setIsPremium(true);
+      localStorage.setItem('malluchat_premium', 'true');
+      setShowPaywall(false);
+      
+      // Clean up dial / call triggers
+      if (ringingTimeout) clearTimeout(ringingTimeout);
+      setRingingTimeout(null);
+      ringtone.stop();
+      
+      alert("🎉 Premium access unlocked successfully! Enjoy unlimited random calls & gender filters.");
+
+      if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
+        // Automatically start the call!
+        setInCall(true);
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          .then((stream) => {
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = stream;
+            }
+            peerEngine.localStream = stream;
+          })
+          .catch((err) => {
+            console.warn("Camera permission declined", err);
+          });
+      } else {
+        setActiveCallingUser(null);
+      }
+    }, 2500);
   };
 
   const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
@@ -1249,17 +1384,19 @@ export default function App() {
             <div className="paywall-crown">
               <Crown size={36} />
             </div>
-            <h3>Unlock Match Calling</h3>
+            <h3>{paywallTriggerReason === 'filter' ? 'Unlock Gender Filtering' : 'Unlock Match Calling'}</h3>
             <p>
-              Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.
+              {paywallTriggerReason === 'filter' 
+                ? 'Unlock Female & Male gender filters to call exactly who you want.'
+                : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
 
             {/* Plans Selection Grid */}
             <div className="plans-grid">
               {[
-                { amount: 30, duration: '1 Day', label: 'Daily Pack', type: 'standard', badge: '' },
-                { amount: 60, duration: '2 Weeks', label: 'Weekly Value', type: 'popular', badge: 'Popular' },
-                { amount: 159, duration: '1 Month', label: 'Monthly Premium', type: 'vip', badge: '👑 VIP Gold' }
+                { amount: 10, duration: '1 Day', label: 'Trial Pack', type: 'standard', badge: '' },
+                { amount: 20, duration: '1 Week', label: 'Weekly Pass', type: 'popular', badge: '' },
+                { amount: 30, duration: '1 Month', label: 'Monthly Premium', type: 'vip', badge: '👑 Popular' }
               ].map((plan) => (
                 <div 
                   key={plan.amount}
@@ -1336,7 +1473,7 @@ export default function App() {
                   Step 1: Scan the QR Code to Pay
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
-                  ⚠️ Pay exactly ₹${selectedPlan.amount} (Transaction will show ₹${selectedPlan.amount})
+                  ⚠️ Pay exactly ₹{selectedPlan.amount} (Transaction will show ₹{selectedPlan.amount})
                 </div>
 
                 {/* Collapsible QR Code Section */}
@@ -1462,20 +1599,22 @@ export default function App() {
                 <button 
                   className="submit-verify-btn"
                   disabled={!paymentScreenshot || verificationSubmitted}
-                  onClick={() => setVerificationSubmitted(true)}
+                  onClick={handleVerifyPayment}
                   style={{
                     background: paymentScreenshot ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
                     color: paymentScreenshot ? 'black' : 'var(--text-muted)'
                   }}
                 >
-                  Submit Payment Verification
+                  {isVerifyingPayment ? 'Verifying transaction...' : 'Submit Payment Verification'}
                 </button>
 
                 {verificationSubmitted && (
                   <div className="payment-warning-alert">
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                     <span>
-                      Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.
+                      {isVerifyingPayment 
+                        ? 'Verifying transaction with UPI gateway, please wait...' 
+                        : 'Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.'}
                     </span>
                   </div>
                 )}
@@ -1765,7 +1904,60 @@ export default function App() {
         {/* Call Overlay Interface */}
         {inCall && (
           <div className="call-overlay" style={{ background: '#000', padding: 0 }}>
-            {peerEngine.localStream?.getVideoTracks().length || remoteStream?.getVideoTracks().length ? (
+            {activeCallingUser && activeCallingUser.id?.startsWith('demo-') ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+                <div className="simulated-remote-feed" style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #1f2937, #111827)'
+                }}>
+                  <div className="call-avatar-large" style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    background: 'var(--primary)',
+                    color: '#000',
+                    fontSize: '3rem',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
+                    animation: 'pulse 2s infinite',
+                    marginBottom: '1rem'
+                  }}>
+                    {activeCallingUser.avatar}
+                  </div>
+                  <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser.name}</h2>
+                  <div className="call-duration" style={{ color: 'var(--primary)', fontSize: '1rem', fontFamily: 'monospace' }}>
+                    {formatCallTime(callDuration)}
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                    Connected via secure P2P line
+                  </p>
+                </div>
+                
+                {/* Local camera preview */}
+                <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
+
+                {/* Call controls */}
+                <div className="call-controls" style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
+                  <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
+                    {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                  </button>
+                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'var(--danger)' : 'rgba(255,255,255,0.2)' }} onClick={toggleCamera} title="Toggle Camera">
+                    {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
+                  </button>
+                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
+                    <PhoneOff size={28} />
+                  </button>
+                </div>
+              </div>
+            ) : peerEngine.localStream?.getVideoTracks().length || remoteStream?.getVideoTracks().length ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
                 <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
@@ -1777,7 +1969,7 @@ export default function App() {
                   <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'var(--danger)' : 'rgba(255,255,255,0.2)' }} onClick={toggleCamera} title="Toggle Camera">
                     {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
                   </button>
-                  <button className="call-ctrl-btn end" onClick={() => peerEngine.endCall()} title="End Call">
+                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
                     <PhoneOff size={28} />
                   </button>
                 </div>
@@ -1794,7 +1986,7 @@ export default function App() {
                   <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
                     <MicOff size={28} />
                   </button>
-                  <button className="call-ctrl-btn end" onClick={() => peerEngine.endCall()} title="End Call">
+                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
                     <PhoneOff size={28} />
                   </button>
                   <button className="call-ctrl-btn" onClick={toggleLoudspeaker} title="Loudspeaker">
@@ -1847,7 +2039,7 @@ export default function App() {
                 </>
               )}
               {viewMode === 'private' && (
-                <button className="icon-btn" onClick={() => { setViewMode('public'); peerEngine.endCall(); setMessages([]); }} title="Leave">
+                <button className="icon-btn" onClick={() => { setViewMode('public'); handleEndCall(); setMessages([]); }} title="Leave">
                   <X size={20} />
                 </button>
               )}
@@ -1882,6 +2074,17 @@ export default function App() {
                 </div>
               )}
 
+              {/* Start Random Call Action */}
+              <div className="quick-random-action-container">
+                <button 
+                  className="quick-random-call-btn"
+                  onClick={handleStartRandomCall}
+                >
+                  <Shuffle size={18} className="pulse-icon" style={{ marginRight: '6px' }} />
+                  <span>Start Random Call Now</span>
+                </button>
+              </div>
+
               {/* Filters Bar */}
               <div className="match-filters-bar">
                 <div className="filter-section">
@@ -1889,19 +2092,19 @@ export default function App() {
                   <div className="filter-options">
                     <button 
                       className={`filter-btn ${genderFilter === 'female' ? 'active' : ''}`}
-                      onClick={() => setGenderFilter('female')}
+                      onClick={() => handleSelectGenderFilter('female')}
                     >
-                      Females
+                      Females {!isPremium && <Crown size={12} style={{ display: 'inline', marginLeft: '4px', color: '#fbbf24', verticalAlign: 'middle' }} />}
                     </button>
                     <button 
                       className={`filter-btn ${genderFilter === 'male' ? 'active' : ''}`}
-                      onClick={() => setGenderFilter('male')}
+                      onClick={() => handleSelectGenderFilter('male')}
                     >
-                      Males
+                      Males {!isPremium && <Crown size={12} style={{ display: 'inline', marginLeft: '4px', color: '#fbbf24', verticalAlign: 'middle' }} />}
                     </button>
                     <button 
                       className={`filter-btn ${genderFilter === 'all' ? 'active' : ''}`}
-                      onClick={() => setGenderFilter('all')}
+                      onClick={() => handleSelectGenderFilter('all')}
                     >
                       Both
                     </button>
