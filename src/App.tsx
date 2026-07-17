@@ -2238,7 +2238,7 @@ export default function App() {
                   peerEngine.setupConnection(incomingChatRequest.conn);
                   setRemoteUsername(incomingChatRequest.metadata?.senderName || 'User');
                   setViewMode('private');
-                  setStatus('connected');
+                  setStatus('connecting');
                   setIncomingChatRequest(null);
                 }}
               >

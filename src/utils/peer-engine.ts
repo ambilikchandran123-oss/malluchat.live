@@ -183,6 +183,10 @@ export class PeerEngine {
             this.callConnection.close();
             this.callConnection = null;
         }
+        if (this.connection) {
+            this.connection.close();
+            this.connection = null;
+        }
         if (stopTracks && this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
