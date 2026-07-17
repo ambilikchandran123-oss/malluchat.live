@@ -1132,7 +1132,13 @@ export default function App() {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, { mimeType });
+      } catch (err) {
+        console.warn("Failed to construct MediaRecorder with custom mimeType, falling back to default:", err);
+        mediaRecorder = new MediaRecorder(stream);
+      }
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       isCancelingVoiceRef.current = false;
@@ -1165,47 +1171,27 @@ export default function App() {
           } as any;
 
           if (viewModeRef.current === 'public') {
-            const form = new FormData();
-            form.append('file', audioBlob, `voice.${extension}`);
-
-            const uploadToTmpFiles = () => {
-              fetch('https://tmpfiles.org/api/v1/upload', {
-                method: 'POST',
-                body: form
+            const uploadTopic = `mc_voice_${uuidv4().substring(0, 8)}`;
+            fetch(`https://ntfy.sh/${uploadTopic}`, {
+              method: 'PUT',
+              headers: {
+                'X-Filename': `voice.${extension}`
+              },
+              body: audioBlob
+            })
+              .then(res => {
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                return res.json();
               })
-                .then(res => {
-                  if (!res.ok) throw new Error("HTTP " + res.status);
-                  return res.json();
-                })
-                .then(data => {
-                  if (!data?.data?.url) throw new Error("Invalid response format");
-                  const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                  sendPublicVoiceMsg(directUrl);
-                })
-                .catch(err => {
-                  console.warn("tmpfiles.org upload failed, trying file.io...", err);
-                  uploadToFileIo();
-                });
-            };
-
-            const uploadToFileIo = () => {
-              fetch('https://file.io', {
-                method: 'POST',
-                body: form
+              .then(data => {
+                if (!data?.attachment?.url) throw new Error("No attachment URL returned");
+                const directUrl = data.attachment.url;
+                sendPublicVoiceMsg(directUrl);
               })
-                .then(res => {
-                  if (!res.ok) throw new Error("HTTP " + res.status);
-                  return res.json();
-                })
-                .then(data => {
-                  if (!data.success || !data.link) throw new Error("file.io failed");
-                  sendPublicVoiceMsg(data.link);
-                })
-                .catch(err => {
-                  console.error("All uploaders failed:", err);
-                  alert("Failed to upload voice message. Please check connection.");
-                });
-            };
+              .catch(err => {
+                console.error("ntfy.sh voice upload failed:", err);
+                alert("Failed to upload voice message. Please check connection.");
+              });
 
             const sendPublicVoiceMsg = (directUrl: string) => {
               const publicMsg = { ...msg, voiceBlob: directUrl };
@@ -1221,8 +1207,6 @@ export default function App() {
               }).catch(() => { });
               sentSound.play().catch(() => { });
             };
-
-            uploadToTmpFiles();
           } else {
             peerEngine.sendMessage(msg);
             setMessages(prev => {
