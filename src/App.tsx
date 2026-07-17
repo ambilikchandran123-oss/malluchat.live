@@ -266,7 +266,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(stored);
         const now = Date.now();
-        return parsed.filter((m: any) => now - m.timestamp < 86400000);
+        return parsed.filter((m: any) => m && m.type !== 'match_searching' && now - m.timestamp < 86400000);
       } catch (e) {
         return [];
       }
@@ -654,13 +654,16 @@ export default function App() {
         }
 
         if (messages.length > 0) {
-          setPublicMessages(prev => {
-            const newMsgs = messages.filter(fm => !prev.some(pm => pm.id === fm.id));
-            if (newMsgs.length === 0) return prev;
-            const updated = [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
-            localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
-            return updated;
-          });
+          const chatOnlyMessages = messages.filter(m => m && m.type !== 'match_searching');
+          if (chatOnlyMessages.length > 0) {
+            setPublicMessages(prev => {
+              const newMsgs = chatOnlyMessages.filter(fm => !prev.some(pm => pm.id === fm.id));
+              if (newMsgs.length === 0) return prev;
+              const updated = [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+              localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+              return updated;
+            });
+          }
         }
       })
       .catch(err => console.error("Failed to load message history:", err));
@@ -752,6 +755,18 @@ export default function App() {
       if (isSearchingRef.current && remotePeerId) {
         setIsSearching(false);
         randomMatchActiveRef.current = remotePeerId;
+
+        // Send matchmaking handshake immediately over P2P data connection
+        setTimeout(() => {
+          peerEngine.sendMessage({
+            id: uuidv4(),
+            senderId: myId,
+            senderName: usernameRef.current || 'Anonymous',
+            type: 'random_match_handshake' as any,
+            timestamp: Date.now()
+          } as any);
+        }, 300);
+
         navigator.mediaDevices.getUserMedia({ audio: true, video: false })
           .then((stream) => {
             peerEngine.startCall(remotePeerId, stream)
@@ -807,10 +822,8 @@ export default function App() {
     };
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
-      if (isSearchingRef.current && metadata?.type === 'random_match') {
-        randomMatchActiveRef.current = conn.peer;
+      if (isSearchingRef.current) {
         peerEngine.setupConnection(conn);
-        setRemoteUsername(metadata.senderName || 'Matched User');
         setIsSearching(false);
         return;
       }
@@ -831,6 +844,13 @@ export default function App() {
     };
 
     peerEngine.onMessage = (msg: any) => {
+      if (msg.type === 'random_match_handshake') {
+        console.log("Handshake received from matched user:", msg.senderName, msg.senderId);
+        randomMatchActiveRef.current = msg.senderId;
+        setRemoteUsername(msg.senderName);
+        setActiveCallingUser({ id: msg.senderId, name: msg.senderName, avatar: '👤' });
+        return;
+      }
       if (msg.type === 'camera_status') {
         setRemoteCameraStatus(msg.text === 'on');
         return;
