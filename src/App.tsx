@@ -1113,8 +1113,26 @@ export default function App() {
         setShowLoginModal(true);
         return;
       }
+      
+      // Sniff supported MIME type (Safari iOS compatibility)
+      let mimeType = 'audio/webm';
+      let extension = 'webm';
+      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+        extension = 'mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+        mimeType = 'audio/aac';
+        extension = 'aac';
+      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
+        mimeType = 'audio/ogg';
+        extension = 'ogg';
+      } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+        mimeType = 'audio/wav';
+        extension = 'wav';
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
       isCancelingVoiceRef.current = false;
@@ -1131,7 +1149,7 @@ export default function App() {
         if (isCancelingVoiceRef.current) return;
         if (audioChunksRef.current.length === 0) return;
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
@@ -1147,34 +1165,65 @@ export default function App() {
           } as any;
 
           if (viewModeRef.current === 'public') {
-            // Public chat voice messages cannot fit in ntfy's 4KB payload limit as base64.
-            // Uploading to an anonymous temporary file host.
             const form = new FormData();
-            form.append('file', audioBlob, 'voice.webm');
-            fetch('https://tmpfiles.org/api/v1/upload', {
-              method: 'POST',
-              body: form
-            })
-              .then(res => res.json())
-              .then(data => {
-                const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                const publicMsg = { ...msg, voiceBlob: directUrl };
-                setPublicMessages(prev => {
-                  const updated = [...prev, publicMsg];
-                  localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
-                  return updated;
-                });
+            form.append('file', audioBlob, `voice.${extension}`);
 
-                fetch(POST_URL, {
-                  method: 'POST',
-                  body: JSON.stringify(publicMsg)
-                }).catch(() => { });
-                sentSound.play().catch(() => { });
-              }).catch(() => {
-                alert("Failed to upload public voice message.");
+            const uploadToTmpFiles = () => {
+              fetch('https://tmpfiles.org/api/v1/upload', {
+                method: 'POST',
+                body: form
+              })
+                .then(res => {
+                  if (!res.ok) throw new Error("HTTP " + res.status);
+                  return res.json();
+                })
+                .then(data => {
+                  if (!data?.data?.url) throw new Error("Invalid response format");
+                  const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                  sendPublicVoiceMsg(directUrl);
+                })
+                .catch(err => {
+                  console.warn("tmpfiles.org upload failed, trying file.io...", err);
+                  uploadToFileIo();
+                });
+            };
+
+            const uploadToFileIo = () => {
+              fetch('https://file.io', {
+                method: 'POST',
+                body: form
+              })
+                .then(res => {
+                  if (!res.ok) throw new Error("HTTP " + res.status);
+                  return res.json();
+                })
+                .then(data => {
+                  if (!data.success || !data.link) throw new Error("file.io failed");
+                  sendPublicVoiceMsg(data.link);
+                })
+                .catch(err => {
+                  console.error("All uploaders failed:", err);
+                  alert("Failed to upload voice message. Please check connection.");
+                });
+            };
+
+            const sendPublicVoiceMsg = (directUrl: string) => {
+              const publicMsg = { ...msg, voiceBlob: directUrl };
+              setPublicMessages(prev => {
+                const updated = [...prev, publicMsg];
+                localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+                return updated;
               });
+
+              fetch(POST_URL, {
+                method: 'POST',
+                body: JSON.stringify(publicMsg)
+              }).catch(() => { });
+              sentSound.play().catch(() => { });
+            };
+
+            uploadToTmpFiles();
           } else {
-            // Private direct connection can handle large data naturally
             peerEngine.sendMessage(msg);
             setMessages(prev => {
               const updated = [...prev, msg];
@@ -1213,54 +1262,80 @@ export default function App() {
     const audioRef = useRef<HTMLAudioElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState<number>(0);
+    const [currentTime, setCurrentTime] = useState<number>(0);
 
     useEffect(() => {
       const audio = audioRef.current;
       if (!audio) return;
 
       const updateProgress = () => {
+        setCurrentTime(audio.currentTime);
         if (audio.duration) {
           setProgress((audio.currentTime / audio.duration) * 100);
         }
       };
+      
+      const handleLoadedMetadata = () => {
+        if (audio.duration) {
+          setDuration(audio.duration);
+        }
+      };
+
       const handleEnded = () => {
         setIsPlaying(false);
         setProgress(0);
+        setCurrentTime(0);
       };
 
       audio.addEventListener('timeupdate', updateProgress);
+      audio.addEventListener('loadedmetadata', handleLoadedMetadata);
       audio.addEventListener('ended', handleEnded);
+
+      if (audio.readyState >= 1 && audio.duration) {
+        setDuration(audio.duration);
+      }
+
       return () => {
         audio.removeEventListener('timeupdate', updateProgress);
+        audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
         audio.removeEventListener('ended', handleEnded);
       };
-    }, []);
+    }, [src]);
 
     const togglePlay = () => {
       if (!audioRef.current) return;
       if (isPlaying) {
         audioRef.current.pause();
       } else {
-        audioRef.current.play();
+        audioRef.current.play().catch(err => console.error("Audio playback error:", err));
       }
       setIsPlaying(!isPlaying);
     };
 
+    const formatTime = (time: number) => {
+      if (isNaN(time) || !isFinite(time)) return '0:00';
+      const mins = Math.floor(time / 60);
+      const secs = Math.floor(time % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
     return (
-      <div className="audio-player-wrapper" style={{ background: isMine ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '20px' }}>
-        <audio ref={audioRef} src={src} className="hidden-audio" />
-        <button className="play-btn" onClick={togglePlay} style={{ background: isMine ? 'var(--primary)' : 'var(--text-main)', color: '#000', width: '36px', height: '36px', minWidth: '36px' }}>
-          <div style={{ marginLeft: isPlaying ? '0' : '2px', display: 'flex' }}>
-            {isPlaying ? (
-              <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '1px' }}></div>
-            ) : (
-              <div style={{ width: '0', height: '0', borderStyle: 'solid', borderWidth: '6px 0 6px 10px', borderColor: 'transparent transparent transparent #000' }}></div>
-            )}
-          </div>
+      <div className="audio-player-wrapper" style={{ background: isMine ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+        <audio ref={audioRef} src={src} className="hidden-audio" preload="metadata" />
+        <button className="play-btn" onClick={togglePlay} style={{ background: isMine ? 'var(--primary)' : 'var(--text-main)', color: '#000', width: '36px', height: '36px', minWidth: '36px', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          {isPlaying ? (
+            <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '1px' }}></div>
+          ) : (
+            <div style={{ width: '0', height: '0', borderStyle: 'solid', borderWidth: '6px 0 6px 10px', borderColor: 'transparent transparent transparent #000', marginLeft: '2px' }}></div>
+          )}
         </button>
-        <div className="audio-progress">
-          <div className="audio-progress-bar" style={{ width: `${progress}%`, background: isMine ? 'var(--primary)' : 'var(--text-main)' }}></div>
+        <div className="audio-progress" style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', position: 'relative', overflow: 'hidden' }}>
+          <div className="audio-progress-bar" style={{ width: `${progress}%`, height: '100%', background: isMine ? 'var(--primary)' : 'var(--text-main)', transition: 'width 0.1s linear' }}></div>
         </div>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '35px', textAlign: 'right', fontFamily: 'monospace' }}>
+          {formatTime(isPlaying ? currentTime : (duration || currentTime))}
+        </span>
       </div>
     );
   };
