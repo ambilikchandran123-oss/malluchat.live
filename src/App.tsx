@@ -325,6 +325,7 @@ export default function App() {
   const isMatchInitiatorRef = useRef<boolean>(false);
   const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const preAcquiredStreamRef = useRef<MediaStream | null>(null);
+  const matchConnectionTimeoutRef = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -480,6 +481,10 @@ export default function App() {
 
   const handleEndCall = (stopTracks = true) => {
     if (searchTimeout) clearInterval(searchTimeout);
+    if (matchConnectionTimeoutRef.current) {
+      clearTimeout(matchConnectionTimeoutRef.current);
+      matchConnectionTimeoutRef.current = null;
+    }
     peerEngine.endCall(stopTracks);
     setInCall(false);
     setActiveCallingUser(null);
@@ -756,6 +761,18 @@ export default function App() {
             type: 'random_match',
             senderName: usernameRef.current
           });
+
+          // Start 6-second connection watchdog
+          if (matchConnectionTimeoutRef.current) clearTimeout(matchConnectionTimeoutRef.current);
+          matchConnectionTimeoutRef.current = setTimeout(() => {
+            if (!inCallRef.current && isSearchingRef.current === false) {
+              console.warn("Match connection timed out on initiator. Self-healing back to search queue...");
+              handleEndCall(true);
+              setTimeout(() => {
+                handleStartRandomCall();
+              }, 500);
+            }
+          }, 6000);
         }
       }
     };
@@ -851,10 +868,18 @@ export default function App() {
             setRemoteStream(rStream);
           });
           setInCall(true);
+          if (matchConnectionTimeoutRef.current) {
+            clearTimeout(matchConnectionTimeoutRef.current);
+            matchConnectionTimeoutRef.current = null;
+          }
           setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
         } else {
           console.error("No pre-acquired stream found for matchmaking initiator B");
           setInCall(true);
+          if (matchConnectionTimeoutRef.current) {
+            clearTimeout(matchConnectionTimeoutRef.current);
+            matchConnectionTimeoutRef.current = null;
+          }
           setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
         }
         return;
@@ -897,6 +922,18 @@ export default function App() {
         randomMatchActiveRef.current = conn.peer;
         peerEngine.setupConnection(conn);
         setIsSearching(false);
+
+        // Start 6-second connection watchdog
+        if (matchConnectionTimeoutRef.current) clearTimeout(matchConnectionTimeoutRef.current);
+        matchConnectionTimeoutRef.current = setTimeout(() => {
+          if (!inCallRef.current && isSearchingRef.current === false) {
+            console.warn("Match connection timed out on receiver. Self-healing back to search queue...");
+            handleEndCall(true);
+            setTimeout(() => {
+              handleStartRandomCall();
+            }, 500);
+          }
+        }, 6000);
         return;
       }
 
@@ -1000,11 +1037,19 @@ export default function App() {
           call.answer(stream);
           peerEngine.callConnection = call;
           setInCall(true);
+          if (matchConnectionTimeoutRef.current) {
+            clearTimeout(matchConnectionTimeoutRef.current);
+            matchConnectionTimeoutRef.current = null;
+          }
           setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
         } else {
           console.warn("No pre-acquired stream found for auto-answering receiver A");
           call.answer();
           setInCall(true);
+          if (matchConnectionTimeoutRef.current) {
+            clearTimeout(matchConnectionTimeoutRef.current);
+            matchConnectionTimeoutRef.current = null;
+          }
           setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
         }
         return;
