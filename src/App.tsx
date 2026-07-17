@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, Volume2, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Plus, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -218,6 +218,8 @@ export default function App() {
   const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
   const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
+  const [searchTimeout, setSearchTimeout] = useState<any | null>(null);
+  const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
 
   // Random Calling states
   const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
@@ -238,7 +240,8 @@ export default function App() {
   const [demoUsers, setDemoUsers] = useState<any[]>(DEMO_PROFILES);
 
   // Video Call States
-  const [isCameraOff, setIsCameraOff] = useState<boolean>(false);
+  const [isCameraOff, setIsCameraOff] = useState<boolean>(true);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
   const [callDuration, setCallDuration] = useState<number>(0);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -311,6 +314,13 @@ export default function App() {
   const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
+  const isSearchingRef = useRef(isSearching);
+  isSearchingRef.current = isSearching;
+  const inCallRef = useRef(inCall);
+  inCallRef.current = inCall;
+  const genderFilterRef = useRef(genderFilter);
+  genderFilterRef.current = genderFilter;
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
   const rateLimiter = useRef(new RateLimiter(5, 5000));
@@ -355,15 +365,12 @@ export default function App() {
     setActiveCallingUser(user);
     ringtone.start();
 
-    // Free call if user is premium OR genderFilter is 'all' (No gender filter selected)
-    const isFreeCall = isPremium || genderFilter === 'all';
-
-    if (isFreeCall) {
-      // Connect call after 3 seconds of ringing
+    if (isPremium) {
+      // If premium, connect call after 3 seconds of ringing
       const timeout = setTimeout(() => {
         ringtone.stop();
         setInCall(true);
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
           .then((stream) => {
             if (localVideoRef.current) {
               localVideoRef.current.srcObject = stream;
@@ -371,12 +378,12 @@ export default function App() {
             peerEngine.localStream = stream;
           })
           .catch((err) => {
-            console.warn("Camera permission declined, proceeding with voice call only", err);
+            console.warn("Media stream access warning:", err);
           });
       }, 3000);
       setRingingTimeout(timeout);
     } else {
-      // If not premium and using filtered calls, show paywall after 1.8 seconds
+      // If not premium, manual calls to demo users always trigger the paywall!
       const timeout = setTimeout(() => {
         setPaywallTriggerReason('calling');
         setShowPaywall(true);
@@ -392,29 +399,114 @@ export default function App() {
       return;
     }
     
-    // Filter active online demo users based on current genderFilter
-    const availableUsers = demoUsers.filter(p => {
-      const matchesGender = genderFilter === 'all' || p.gender === genderFilter;
-      const matchesOnline = p.status === 'online';
-      return matchesGender && matchesOnline;
-    });
-    
-    if (availableUsers.length === 0) {
-      alert("No active users found matching your filters. Try selecting 'Both'.");
-      return;
-    }
-    
-    // Pick a random user
-    const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
-    
-    // Call the user
-    handleCallDemoUser(randomUser);
+    setIsSearching(true);
+    if (searchTimeout) clearTimeout(searchTimeout);
+
+    // Broadcast matchmaking search request over WebSocket
+    const signal = {
+      id: uuidv4(),
+      senderId: myId,
+      senderName: username,
+      type: 'match_searching',
+      timestamp: Date.now()
+    };
+    fetch(POST_URL, {
+      method: 'POST',
+      body: JSON.stringify(signal)
+    }).catch(() => {});
+
+    // 5 second fallback to match with a demo user for FREE
+    const timeout = setTimeout(() => {
+      if (isSearchingRef.current && !inCallRef.current) {
+        setIsSearching(false);
+        const availableUsers = demoUsers.filter(p => {
+          const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
+          const matchesOnline = p.status === 'online';
+          return matchesGender && matchesOnline;
+        });
+        if (availableUsers.length > 0) {
+          const randomUser = availableUsers[Math.floor(Math.random() * availableUsers.length)];
+          setActiveCallingUser(randomUser);
+          setInCall(true);
+          navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then((stream) => {
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+              }
+              peerEngine.localStream = stream;
+            })
+            .catch((err) => {
+              console.warn("Media stream access warning:", err);
+            });
+        }
+      }
+    }, 5000);
+    setSearchTimeout(timeout);
   };
 
   const handleEndCall = () => {
+    if (searchTimeout) clearTimeout(searchTimeout);
     peerEngine.endCall();
     setInCall(false);
     setActiveCallingUser(null);
+    setIsCameraOff(true);
+    setRemoteCameraStatus(false);
+    setRemoteStream(null);
+  };
+
+  const handleSkipCall = () => {
+    handleEndCall();
+    setTimeout(() => {
+      handleStartRandomCall();
+    }, 300);
+  };
+
+  const handleTurnCameraOn = () => {
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then((videoStream) => {
+        const videoTrack = videoStream.getVideoTracks()[0];
+        if (peerEngine.localStream) {
+          peerEngine.localStream.addTrack(videoTrack);
+        } else {
+          peerEngine.localStream = videoStream;
+        }
+        if (peerEngine.callConnection?.peerConnection) {
+          peerEngine.callConnection.peerConnection.addTrack(videoTrack, peerEngine.localStream!);
+        }
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = peerEngine.localStream;
+        }
+        setIsCameraOff(false);
+        peerEngine.sendMessage({
+          id: uuidv4(),
+          senderId: myId,
+          senderName: username,
+          type: 'camera_status' as any,
+          text: 'on',
+          timestamp: Date.now()
+        } as any);
+      })
+      .catch((err) => {
+        alert("Could not activate camera: " + err.message);
+      });
+  };
+
+  const handleTurnCameraOff = () => {
+    if (peerEngine.localStream) {
+      peerEngine.localStream.getVideoTracks().forEach(track => {
+        track.stop();
+        peerEngine.localStream?.removeTrack(track);
+      });
+    }
+    setIsCameraOff(true);
+    peerEngine.sendMessage({
+      id: uuidv4(),
+      senderId: myId,
+      senderName: username,
+      type: 'camera_status' as any,
+      text: 'off',
+      timestamp: Date.now()
+    } as any);
   };
 
   const handleSelectGenderFilter = (filter: 'female' | 'male' | 'all') => {
@@ -427,7 +519,6 @@ export default function App() {
       setGenderFilter(filter);
     } else {
       setPaywallTriggerReason('filter');
-      // Set a dummy profile explaining the filter so card doesn't crash on activeCallingUser properties
       setActiveCallingUser({ id: 'dummy-filter', name: filter === 'female' ? 'Females Only' : 'Males Only', avatar: '⭐', gender: filter });
       setShowPaywall(true);
     }
@@ -436,8 +527,11 @@ export default function App() {
   const handleCancelCall = () => {
     if (ringingTimeout) clearTimeout(ringingTimeout);
     setRingingTimeout(null);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    setSearchTimeout(null);
     ringtone.stop();
     setActiveCallingUser(null);
+    setIsSearching(false);
     setShowPaywall(false);
     setSelectedPlan(null);
     setPaymentScreenshot(null);
@@ -581,6 +675,20 @@ export default function App() {
       })
       .catch(err => console.error("Failed to load message history:", err));
 
+    const handleReceiveMatchSignal = (payload: any) => {
+      if (isSearchingRef.current && !inCallRef.current && payload.senderId !== myId) {
+        console.log("Match request received from:", payload.senderName, payload.senderId);
+        if (myId > payload.senderId) {
+          console.log("Initiating call connection to:", payload.senderId);
+          setIsSearching(false);
+          peerEngine.connectToPeer(payload.senderId, {
+            type: 'random_match',
+            senderName: usernameRef.current
+          });
+        }
+      }
+    };
+
     // Setup Global Public Chat via custom WebSocket with auto-reconnect
     let ws: WebSocket | null = null;
     let isUnmounted = false;
@@ -601,6 +709,10 @@ export default function App() {
           if (data.event === 'message') {
             try {
               const payload = JSON.parse(data.message);
+              if (payload.type === 'match_searching') {
+                handleReceiveMatchSignal(payload);
+                return;
+              }
               setPublicMessages(prev => {
                 if (prev.find(m => m.id === payload.id)) return prev;
                 const updated = [...prev, payload];
@@ -646,6 +758,31 @@ export default function App() {
     peerEngine.onConnected = () => {
       setStatus('connected');
       const remotePeerId = peerEngine.connection?.peer;
+
+      if (isSearchingRef.current && remotePeerId) {
+        setIsSearching(false);
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+          .then((stream) => {
+            peerEngine.startCall(remotePeerId, stream)
+              .then((call) => {
+                if (call) {
+                  call.on('stream', (rStream) => {
+                    setRemoteStream(rStream);
+                  });
+                }
+              });
+            peerEngine.localStream = stream;
+            setInCall(true);
+            setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
+          })
+          .catch((err) => {
+            console.error("Failed to acquire stream on connect:", err);
+            setInCall(true);
+            setActiveCallingUser({ id: remotePeerId, name: 'Matched User', avatar: '👤' });
+          });
+        return;
+      }
+
       if (remotePeerId) {
         const stored = localStorage.getItem(`malluchat_private_messages_${remotePeerId}`);
         if (stored) {
@@ -679,6 +816,13 @@ export default function App() {
     };
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
+      if (isSearchingRef.current && metadata?.type === 'random_match') {
+        peerEngine.setupConnection(conn);
+        setRemoteUsername(metadata.senderName || 'Matched User');
+        setIsSearching(false);
+        return;
+      }
+
       // Automatically reject incoming generic connections if already chatting with someone else
       if (peerEngine.connection && peerEngine.connection.open && peerEngine.connection.peer !== conn.peer) {
         conn.close();
@@ -695,6 +839,10 @@ export default function App() {
     };
 
     peerEngine.onMessage = (msg: any) => {
+      if (msg.type === 'camera_status') {
+        setRemoteCameraStatus(msg.text === 'on');
+        return;
+      }
       if (msg.type === 'user_info') {
         if (msg.senderName) setRemoteUsername(msg.senderName);
         return;
@@ -758,6 +906,26 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
+      if (isSearchingRef.current) {
+        setIsSearching(false);
+        navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then((stream) => {
+          call.answer(stream);
+          call.on('stream', (rStream) => {
+            setRemoteStream(rStream);
+          });
+          peerEngine.callConnection = call;
+          peerEngine.localStream = stream;
+          setInCall(true);
+          setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
+        }).catch((err) => {
+          console.error("Auto answer failed:", err);
+          call.answer();
+          setInCall(true);
+          setActiveCallingUser({ id: call.peer, name: 'Matched User', avatar: '👤' });
+        });
+        return;
+      }
+
       if (window.confirm(`Incoming ${isVideo ? 'video' : 'voice'} call! Accept?`)) {
         navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo }).then((stream) => {
           call.answer(stream);
@@ -779,6 +947,8 @@ export default function App() {
       setInCall(false);
       setRemoteStream(null);
       setIsMicMuted(false);
+      setIsCameraOff(true);
+      setRemoteCameraStatus(false);
     };
 
     return () => {
@@ -1257,20 +1427,7 @@ export default function App() {
   };
 
 
-  const toggleCamera = () => {
-    if (peerEngine.localStream) {
-      const vTrack = peerEngine.localStream.getVideoTracks()[0];
-      if (vTrack) {
-        vTrack.enabled = !vTrack.enabled;
-        setIsCameraOff(!vTrack.enabled);
-      }
-    }
-  };
 
-  const toggleLoudspeaker = () => {
-    alert("Loudspeaker mode activated!");
-    // Note: setSinkId is not widely supported yet without specialized permissions.
-  };
 
   const scrollToMessage = (msgId: string) => {
     const element = document.getElementById(`msg-${msgId}`);
@@ -1290,6 +1447,34 @@ export default function App() {
   // ======== RENDERS ======== 
   return (
     <main className="app-layout">
+      {/* Searching Match Overlay */}
+      {isSearching && (
+        <div className="ring-overlay">
+          <div className="ring-radar">
+            <div className="radar-wave"></div>
+            <div className="radar-wave"></div>
+            <div className="radar-wave"></div>
+            <div className="ring-avatar" style={{ fontSize: '3rem' }}>
+              🔍
+            </div>
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', color: 'white' }}>
+            Finding a Match...
+          </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem' }}>
+            Looking for online Malayalam speakers nearby
+          </p>
+          <button 
+            className="call-ctrl-btn end" 
+            onClick={handleCancelCall} 
+            title="Cancel Search"
+            style={{ width: '60px', height: '60px' }}
+          >
+            <PhoneOff size={24} />
+          </button>
+        </div>
+      )}
+
       {/* Call Connecting Overlay */}
       {activeCallingUser && !showPaywall && (
         <div className="ring-overlay">
@@ -1853,6 +2038,7 @@ export default function App() {
         {inCall && (
           <div className="call-overlay" style={{ background: '#000', padding: 0 }}>
             {activeCallingUser && activeCallingUser.id?.startsWith('demo-') ? (
+              /* Simulated call layout (demo profiles) */
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <div className="simulated-remote-feed" style={{
                   width: '100%',
@@ -1897,25 +2083,11 @@ export default function App() {
                   <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
                     {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
                   </button>
-                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'var(--danger)' : 'rgba(255,255,255,0.2)' }} onClick={toggleCamera} title="Toggle Camera">
+                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'rgba(255,255,255,0.2)' : 'var(--primary)', color: isCameraOff ? 'white' : 'black' }} onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff} title="Toggle Camera">
                     {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
                   </button>
-                  <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
-                    <PhoneOff size={28} />
-                  </button>
-                </div>
-              </div>
-            ) : peerEngine.localStream?.getVideoTracks().length || remoteStream?.getVideoTracks().length ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
-                <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
-
-                <div className="call-controls" style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-                  <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
-                    {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
-                  </button>
-                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'var(--danger)' : 'rgba(255,255,255,0.2)' }} onClick={toggleCamera} title="Toggle Camera">
-                    {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
+                  <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
+                    <Shuffle size={28} />
                   </button>
                   <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
                     <PhoneOff size={28} />
@@ -1923,22 +2095,62 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <div className="call-avatar-large">
-                  <MalluLogo size={80} />
-                </div>
-                <h2 style={{ marginBottom: '0.5rem' }}>Secure Voice Call</h2>
-                <p style={{ color: 'var(--text-muted)' }}>Secure Channel Active</p>
+              /* Real User P2P matching layout */
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
+                {remoteCameraStatus && remoteStream ? (
+                  /* Show remote video if their camera is enabled */
+                  <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  /* Voice-only caller layout with large pulsing avatar */
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'linear-gradient(135deg, #1f2937, #111827)'
+                  }}>
+                    <div className="call-avatar-large" style={{
+                      width: '120px',
+                      height: '120px',
+                      borderRadius: '50%',
+                      background: 'var(--primary)',
+                      color: '#000',
+                      fontSize: '3rem',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
+                      animation: 'pulse 2s infinite',
+                      marginBottom: '1rem'
+                    }}>
+                      {activeCallingUser?.avatar || '👤'}
+                    </div>
+                    <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser?.name || 'Matched User'}</h2>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Voice Call Active
+                    </p>
+                  </div>
+                )}
+                
+                {/* Local camera preview */}
+                <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
 
-                <div className="call-controls">
+                {/* Call controls */}
+                <div className="call-controls" style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
                   <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
-                    <MicOff size={28} />
+                    {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                  </button>
+                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'rgba(255,255,255,0.2)' : 'var(--primary)', color: isCameraOff ? 'white' : 'black' }} onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff} title="Toggle Camera">
+                    {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
+                  </button>
+                  <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
+                    <Shuffle size={28} />
                   </button>
                   <button className="call-ctrl-btn end" onClick={handleEndCall} title="End Call">
                     <PhoneOff size={28} />
-                  </button>
-                  <button className="call-ctrl-btn" onClick={toggleLoudspeaker} title="Loudspeaker">
-                    <Volume2 size={28} />
                   </button>
                 </div>
               </div>
