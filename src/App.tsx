@@ -403,6 +403,8 @@ export default function App() {
   viewModeRef.current = viewMode;
   const usernameRef = useRef(username);
   usernameRef.current = username;
+  const statusRef = useRef(status);
+  statusRef.current = status;
   const isCancelingVoiceRef = useRef<boolean>(false);
 
   // Call states
@@ -960,6 +962,12 @@ export default function App() {
         return;
       }
 
+      // If we are the initiator/connector in a private space, we wait for the recipient to send us the 'accept' signal!
+      if (viewModeRef.current === 'private' && statusRef.current === 'connecting') {
+        console.log("Private connection opened; waiting for accept signal from the other peer");
+        return;
+      }
+
       setStatus('connected');
       const remotePeerId = peerEngine.connection?.peer;
 
@@ -1064,6 +1072,24 @@ export default function App() {
     };
 
     peerEngine.onMessage = (msg: any) => {
+      if (msg.type === 'accept') {
+        if (privateConnectionTimeoutRef.current) {
+          clearTimeout(privateConnectionTimeoutRef.current);
+          privateConnectionTimeoutRef.current = null;
+        }
+        setRemoteUsername(msg.senderName);
+        setStatus('connected');
+        
+        // Send our user_info back so the recipient knows our username
+        peerEngine.sendMessage({
+          id: uuidv4(),
+          senderId: peerEngine.id,
+          senderName: usernameRef.current || 'User',
+          type: 'user_info',
+          timestamp: Date.now()
+        } as any);
+        return;
+      }
       if (msg.type === 'random_match_handshake') {
         console.log("Handshake received from matched user:", msg.senderName, msg.senderId);
         randomMatchActiveRef.current = msg.senderId;
@@ -2316,13 +2342,13 @@ export default function App() {
                   setStatus('connected');
                   setIncomingChatRequest(null);
                   
-                  // Send user info back to initiator
+                  // Send accept signal back to initiator
                   setTimeout(() => {
                     peerEngine.sendMessage({
                       id: uuidv4(),
                       senderId: peerEngine.id,
                       senderName: usernameRef.current || 'User',
-                      type: 'user_info',
+                      type: 'accept',
                       timestamp: Date.now()
                     } as any);
                   }, 200);
