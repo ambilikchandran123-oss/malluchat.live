@@ -417,6 +417,7 @@ export default function App() {
   const placeholderVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const preAcquiredStreamRef = useRef<MediaStream | null>(null);
   const matchConnectionTimeoutRef = useRef<any>(null);
+  const privateConnectionTimeoutRef = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
@@ -598,6 +599,10 @@ export default function App() {
     if (matchConnectionTimeoutRef.current) {
       clearTimeout(matchConnectionTimeoutRef.current);
       matchConnectionTimeoutRef.current = null;
+    }
+    if (privateConnectionTimeoutRef.current) {
+      clearTimeout(privateConnectionTimeoutRef.current);
+      privateConnectionTimeoutRef.current = null;
     }
     peerEngine.endCall(stopTracks);
     setInCall(false);
@@ -937,6 +942,10 @@ export default function App() {
     }
 
     peerEngine.onConnected = () => {
+      if (privateConnectionTimeoutRef.current) {
+        clearTimeout(privateConnectionTimeoutRef.current);
+        privateConnectionTimeoutRef.current = null;
+      }
       setStatus('connected');
       const remotePeerId = peerEngine.connection?.peer;
 
@@ -1005,6 +1014,10 @@ export default function App() {
     };
 
     peerEngine.onDisconnected = () => {
+      if (privateConnectionTimeoutRef.current) {
+        clearTimeout(privateConnectionTimeoutRef.current);
+        privateConnectionTimeoutRef.current = null;
+      }
       setStatus('disconnected');
       setMessages([]);
     };
@@ -1017,6 +1030,10 @@ export default function App() {
       }
 
       if (metadata?.type === 'decline') {
+        if (privateConnectionTimeoutRef.current) {
+          clearTimeout(privateConnectionTimeoutRef.current);
+          privateConnectionTimeoutRef.current = null;
+        }
         alert(`${metadata.senderName} declined your chat request.`);
         setViewMode('public');
         setStatus('disconnected');
@@ -1508,6 +1525,14 @@ export default function App() {
     setRemoteUsername(remoteName);
     setViewMode('private');
     setStatus('connecting');
+
+    if (privateConnectionTimeoutRef.current) clearTimeout(privateConnectionTimeoutRef.current);
+    privateConnectionTimeoutRef.current = setTimeout(() => {
+      alert("Connection timed out. The user might be offline or has left.");
+      setViewMode('public');
+      setStatus('disconnected');
+      peerEngine.endCall(true);
+    }, 12000); // 12 seconds timeout
   };
 
   const handleSend = () => {
