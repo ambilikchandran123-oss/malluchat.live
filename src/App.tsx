@@ -438,6 +438,8 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (viewMode !== 'random') return;
+
     const locateUser = async () => {
       // 1. Try browser Geolocation first
       if (typeof window !== 'undefined' && navigator.geolocation) {
@@ -507,7 +509,7 @@ export default function App() {
     };
 
     locateUser();
-  }, []);
+  }, [viewMode]);
 
   useEffect(() => {
     // Pulse Live Users Count
