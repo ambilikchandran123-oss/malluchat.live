@@ -388,6 +388,8 @@ export default function App() {
 
   // Incoming personal chat request
   const [incomingChatRequest, setIncomingChatRequest] = useState<{ conn: any, metadata: any } | null>(null);
+  const incomingChatRequestRef = useRef(incomingChatRequest);
+  incomingChatRequestRef.current = incomingChatRequest;
   const [remoteUsername, setRemoteUsername] = useState<string>('User');
 
   // Advanced features
@@ -616,6 +618,11 @@ export default function App() {
         preAcquiredStreamRef.current.getTracks().forEach(t => t.stop());
         preAcquiredStreamRef.current = null;
       }
+    }
+    setStatus('disconnected');
+    setMessages([]);
+    if (viewModeRef.current === 'private') {
+      setViewMode('public');
     }
   };
 
@@ -946,6 +953,13 @@ export default function App() {
         clearTimeout(privateConnectionTimeoutRef.current);
         privateConnectionTimeoutRef.current = null;
       }
+      
+      // If we are the recipient of an incoming chat request, do not mark as connected until we explicitly accept!
+      if (incomingChatRequestRef.current) {
+        console.log("Connection opened but waiting for user to click Accept");
+        return;
+      }
+
       setStatus('connected');
       const remotePeerId = peerEngine.connection?.peer;
 
@@ -1020,6 +1034,10 @@ export default function App() {
       }
       setStatus('disconnected');
       setMessages([]);
+      if (viewModeRef.current === 'private') {
+        setViewMode('public');
+        alert("The other user has disconnected.");
+      }
     };
 
     peerEngine.onConnectionRequest = (conn, metadata) => {
@@ -1039,6 +1057,9 @@ export default function App() {
         setStatus('disconnected');
         return;
       }
+      
+      // Setup the connection immediately so that open/data events are captured
+      peerEngine.setupConnection(conn);
       setIncomingChatRequest({ conn, metadata });
     };
 
@@ -2282,6 +2303,7 @@ export default function App() {
                   incomingChatRequest.conn.close();
                   peerEngine.sendDeclineRequest(incomingChatRequest.conn.peer, { type: 'decline', senderName: username });
                   setIncomingChatRequest(null);
+                  setStatus('disconnected');
                 }}
               >
                 Decline
@@ -2289,11 +2311,21 @@ export default function App() {
               <button
                 className="btn btn-primary" style={{ flex: 1, margin: 0, padding: '0.6rem', fontSize: '0.9rem' }}
                 onClick={() => {
-                  peerEngine.setupConnection(incomingChatRequest.conn);
                   setRemoteUsername(incomingChatRequest.metadata?.senderName || 'User');
                   setViewMode('private');
-                  setStatus('connecting');
+                  setStatus('connected');
                   setIncomingChatRequest(null);
+                  
+                  // Send user info back to initiator
+                  setTimeout(() => {
+                    peerEngine.sendMessage({
+                      id: uuidv4(),
+                      senderId: peerEngine.id,
+                      senderName: usernameRef.current || 'User',
+                      type: 'user_info',
+                      timestamp: Date.now()
+                    } as any);
+                  }, 200);
                 }}
               >
                 Accept
@@ -2478,7 +2510,7 @@ export default function App() {
                 </>
               )}
               {viewMode === 'private' && (
-                <button className="icon-btn" onClick={() => { setViewMode('public'); handleEndCall(); setMessages([]); }} title="Leave">
+                <button className="icon-btn" onClick={() => handleEndCall()} title="Leave">
                   <X size={20} />
                 </button>
               )}
