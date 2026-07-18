@@ -6,7 +6,7 @@ class RingtoneGenerator {
   private isPlaying: boolean = false;
   private activeTimeout: any = null;
 
-  start() {
+  start(loop: boolean = false) {
     if (this.isPlaying) return;
     this.isPlaying = true;
 
@@ -38,13 +38,15 @@ class RingtoneGenerator {
       this.osc1.start();
       this.osc2.start();
 
-      // Automatically taper off after 1.7 seconds to prepare for the paywall
-      this.gainNode.gain.setValueAtTime(0.12, this.audioCtx.currentTime + 1.5);
-      this.gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 1.7);
-      
-      this.activeTimeout = setTimeout(() => {
-        this.stop();
-      }, 1800);
+      if (!loop) {
+        // Automatically taper off after 1.7 seconds to prepare for the paywall
+        this.gainNode.gain.setValueAtTime(0.12, this.audioCtx.currentTime + 1.5);
+        this.gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 1.7);
+        
+        this.activeTimeout = setTimeout(() => {
+          this.stop();
+        }, 1800);
+      }
     } catch (e) {
       console.error('Failed to play ringtone via Web Audio API', e);
     }

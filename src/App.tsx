@@ -1189,7 +1189,7 @@ export default function App() {
           fromName: msg.senderName,
           isVideo: msg.text === 'video'
         });
-        ringtone.start();
+        ringtone.start(true);
         return;
       }
       if (msg.type === 'call_cancel') {
@@ -1906,7 +1906,7 @@ export default function App() {
         isVideo: isVideo
       });
 
-      ringtone.start();
+      ringtone.start(true);
 
       // Send call invite signal to remote peer
       peerEngine.sendMessage({
