@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
@@ -126,71 +126,105 @@ const KERALA_CITIES = [
   { name: 'Wayanad, Kerala', lat: 11.6050, lon: 76.0825 }
 ];
 
-const getProfileLocation = (index: number, cityName: string, distance: number, isNearest3: boolean) => {
+const getProfileLocation = (profile: any, userCoords: { lat: number; lon: number } | null, index: number) => {
+  const userLat = userCoords?.lat ?? 9.9312;
+  const userLon = userCoords?.lon ?? 76.2673;
+  const profileLat = userLat + (profile.latOffset ?? 0);
+  const profileLon = userLon + (profile.lonOffset ?? 0);
+
+  // Find the closest city in KERALA_CITIES to (profileLat, profileLon)
+  let closestCity = KERALA_CITIES[0];
+  let minDistance = Infinity;
+
+  KERALA_CITIES.forEach((city) => {
+    const dist = parseFloat(calculateDistance(profileLat, profileLon, city.lat, city.lon));
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestCity = city;
+    }
+  });
+
+  const cleanCity = closestCity.name.split(',')[0].trim();
+  const lowerCity = cleanCity.toLowerCase();
+
+  let subLocList = GENERIC_SUB_LOCS;
+  if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
+    subLocList = KOCHI_SUB_LOCS;
+  } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
+    subLocList = CALICUT_SUB_LOCS;
+  } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
+    subLocList = TRIVANDRUM_SUB_LOCS;
+  } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
+    subLocList = THRISSUR_SUB_LOCS;
+  } else if (lowerCity.includes('malappuram')) {
+    subLocList = MALAPPURAM_SUB_LOCS;
+  } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
+    subLocList = KOLLAM_SUB_LOCS;
+  } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
+    subLocList = ALAPPUZHA_SUB_LOCS;
+  } else if (lowerCity.includes('kottayam')) {
+    subLocList = KOTTAYAM_SUB_LOCS;
+  } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
+    subLocList = PALAKKAD_SUB_LOCS;
+  } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
+    subLocList = KANNUR_SUB_LOCS;
+  } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
+    subLocList = KASARAGOD_SUB_LOCS;
+  } else if (lowerCity.includes('pathanamthitta')) {
+    subLocList = PATHANAMTHITTA_SUB_LOCS;
+  } else if (lowerCity.includes('idukki')) {
+    subLocList = IDUKKI_SUB_LOCS;
+  } else if (lowerCity.includes('wayanad')) {
+    subLocList = WAYANAD_SUB_LOCS;
+  }
+
+  const subLoc = subLocList[index % subLocList.length];
+  return `${subLoc}, ${cleanCity}`;
+};
+
+const getUserSubLocation = (username: string, cityName: string) => {
   const cleanCity = cityName.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
 
-  if (isNearest3) {
-    let subLocList = GENERIC_SUB_LOCS;
-    if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
-      subLocList = KOCHI_SUB_LOCS;
-    } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
-      subLocList = CALICUT_SUB_LOCS;
-    } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
-      subLocList = TRIVANDRUM_SUB_LOCS;
-    } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
-      subLocList = THRISSUR_SUB_LOCS;
-    } else if (lowerCity.includes('malappuram')) {
-      subLocList = MALAPPURAM_SUB_LOCS;
-    } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
-      subLocList = KOLLAM_SUB_LOCS;
-    } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
-      subLocList = ALAPPUZHA_SUB_LOCS;
-    } else if (lowerCity.includes('kottayam')) {
-      subLocList = KOTTAYAM_SUB_LOCS;
-    } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
-      subLocList = PALAKKAD_SUB_LOCS;
-    } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
-      subLocList = KANNUR_SUB_LOCS;
-    } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
-      subLocList = KASARAGOD_SUB_LOCS;
-    } else if (lowerCity.includes('pathanamthitta')) {
-      subLocList = PATHANAMTHITTA_SUB_LOCS;
-    } else if (lowerCity.includes('idukki')) {
-      subLocList = IDUKKI_SUB_LOCS;
-    } else if (lowerCity.includes('wayanad')) {
-      subLocList = WAYANAD_SUB_LOCS;
-    }
-
-    const subLoc = subLocList[index % subLocList.length];
-    return `${subLoc}, ${cleanCity}`;
-  } else {
-    // For further users, map to neighboring/other Kerala cities
-    const otherCities = [
-      { name: 'Kochi', subLocs: KOCHI_SUB_LOCS },
-      { name: 'Kozhikode', subLocs: CALICUT_SUB_LOCS },
-      { name: 'Trivandrum', subLocs: TRIVANDRUM_SUB_LOCS },
-      { name: 'Thrissur', subLocs: THRISSUR_SUB_LOCS },
-      { name: 'Malappuram', subLocs: MALAPPURAM_SUB_LOCS },
-      { name: 'Kollam', subLocs: KOLLAM_SUB_LOCS },
-      { name: 'Alappuzha', subLocs: ALAPPUZHA_SUB_LOCS },
-      { name: 'Kottayam', subLocs: KOTTAYAM_SUB_LOCS },
-      { name: 'Palakkad', subLocs: PALAKKAD_SUB_LOCS },
-      { name: 'Kannur', subLocs: KANNUR_SUB_LOCS },
-      { name: 'Kasaragod', subLocs: KASARAGOD_SUB_LOCS },
-      { name: 'Pathanamthitta', subLocs: PATHANAMTHITTA_SUB_LOCS },
-      { name: 'Idukki', subLocs: IDUKKI_SUB_LOCS },
-      { name: 'Wayanad', subLocs: WAYANAD_SUB_LOCS }
-    ].filter(c => c.name.toLowerCase() !== lowerCity && !lowerCity.includes(c.name.toLowerCase()));
-
-    // Choose city based on index
-    const cityChoice = otherCities[index % otherCities.length];
-    // Select sub-location in that city based on distance
-    const subLocIndex = Math.floor(distance * 3) % cityChoice.subLocs.length;
-    const subLoc = cityChoice.subLocs[subLocIndex];
-    return `${subLoc}, ${cityChoice.name}`;
+  let subLocList = GENERIC_SUB_LOCS;
+  if (lowerCity.includes('kochi') || lowerCity.includes('cochin') || lowerCity.includes('ernakulam')) {
+    subLocList = KOCHI_SUB_LOCS;
+  } else if (lowerCity.includes('kozhikode') || lowerCity.includes('calicut')) {
+    subLocList = CALICUT_SUB_LOCS;
+  } else if (lowerCity.includes('trivandrum') || lowerCity.includes('thiruvananthapuram')) {
+    subLocList = TRIVANDRUM_SUB_LOCS;
+  } else if (lowerCity.includes('thrissur') || lowerCity.includes('trichur')) {
+    subLocList = THRISSUR_SUB_LOCS;
+  } else if (lowerCity.includes('malappuram')) {
+    subLocList = MALAPPURAM_SUB_LOCS;
+  } else if (lowerCity.includes('kollam') || lowerCity.includes('quilon')) {
+    subLocList = KOLLAM_SUB_LOCS;
+  } else if (lowerCity.includes('alappuzha') || lowerCity.includes('alleppey')) {
+    subLocList = ALAPPUZHA_SUB_LOCS;
+  } else if (lowerCity.includes('kottayam')) {
+    subLocList = KOTTAYAM_SUB_LOCS;
+  } else if (lowerCity.includes('palakkad') || lowerCity.includes('palghat')) {
+    subLocList = PALAKKAD_SUB_LOCS;
+  } else if (lowerCity.includes('kannur') || lowerCity.includes('cannanore')) {
+    subLocList = KANNUR_SUB_LOCS;
+  } else if (lowerCity.includes('kasaragod') || lowerCity.includes('cassergode')) {
+    subLocList = KASARAGOD_SUB_LOCS;
+  } else if (lowerCity.includes('pathanamthitta')) {
+    subLocList = PATHANAMTHITTA_SUB_LOCS;
+  } else if (lowerCity.includes('idukki')) {
+    subLocList = IDUKKI_SUB_LOCS;
+  } else if (lowerCity.includes('wayanad')) {
+    subLocList = WAYANAD_SUB_LOCS;
   }
-}
+
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash);
+  const subLoc = subLocList[index % subLocList.length];
+  return `${subLoc}, ${cleanCity}`;
+};
 
 const DEMO_PROFILES = [
   { id: 'demo-1', name: 'Aisha', gender: 'female', status: 'online', latOffset: 0.012, lonOffset: -0.008, defaultDist: 1.5, avatar: 'Ai' },
@@ -277,6 +311,11 @@ export default function App() {
   const [currentTxnId, setCurrentTxnId] = useState<string>('');
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
   const [demoUsers, setDemoUsers] = useState<any[]>(DEMO_PROFILES);
+
+  const userLocationText = useMemo(() => {
+    if (!username) return detectedCity.split(',')[0].trim();
+    return getUserSubLocation(username, detectedCity);
+  }, [username, detectedCity]);
 
   // Video Call States
   const [isCameraOff, setIsCameraOff] = useState<boolean>(true);
@@ -512,7 +551,7 @@ export default function App() {
         .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
       
       const idx = sortedOnline.findIndex(p => p.id === user.id);
-      enrichedUser.locationText = getProfileLocation(idx >= 0 ? idx : 0, detectedCity, enrichedUser.calculatedDistance, idx < 3 && idx >= 0);
+      enrichedUser.locationText = getProfileLocation(user, userCoords, idx >= 0 ? idx : 0);
     }
 
     setActiveCallingUser(enrichedUser);
@@ -1674,9 +1713,14 @@ export default function App() {
             Calling {activeCallingUser.name}...
           </h2>
           {activeCallingUser.locationText && (
-            <div style={{ color: '#10b981', fontSize: '0.95rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-              <MapPin size={16} />
-              <span>{activeCallingUser.locationText} ({activeCallingUser.calculatedDistance} km away)</span>
+            <div style={{ color: '#10b981', fontSize: '0.95rem', marginBottom: '0.8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <MapPin size={16} />
+                <span>{activeCallingUser.locationText} ({activeCallingUser.calculatedDistance} km away)</span>
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                Your location: <span style={{ color: 'white', fontWeight: 500 }}>{userLocationText}</span>
+              </div>
             </div>
           )}
           <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
@@ -2258,9 +2302,14 @@ export default function App() {
                   </div>
                   <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser.name}</h2>
                   {activeCallingUser.locationText && (
-                    <div style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={14} />
-                      <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km away</span>
+                    <div style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={14} />
+                        <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km away</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Your location: <span style={{ color: 'white' }}>{userLocationText}</span>
+                      </div>
                     </div>
                   )}
                   <div className="call-duration" style={{ color: 'var(--primary)', fontSize: '1rem', fontFamily: 'monospace' }}>
@@ -2438,7 +2487,7 @@ export default function App() {
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>
-                      {detectedCity.replace(', Kerala', '')}
+                      {userLocationText}
                     </span>
                     <span style={{
                       fontSize: '0.75rem',
@@ -2473,7 +2522,7 @@ export default function App() {
                   .map((profile, idx) => {
                     const distance = profile.calculatedDistance;
                     const isOnline = profile.status === 'online';
-                    const locationText = getProfileLocation(idx, detectedCity, distance, idx < 3);
+                    const locationText = getProfileLocation(profile, userCoords, idx);
                     const enrichedProfile = { ...profile, locationText };
 
                     return (
