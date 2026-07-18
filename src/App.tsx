@@ -390,6 +390,9 @@ export default function App() {
   const [incomingChatRequest, setIncomingChatRequest] = useState<{ conn: any, metadata: any } | null>(null);
   const incomingChatRequestRef = useRef(incomingChatRequest);
   incomingChatRequestRef.current = incomingChatRequest;
+  const [incomingCallRequest, setIncomingCallRequest] = useState<{ fromId: string, fromName: string, isVideo: boolean } | null>(null);
+  const incomingCallRequestRef = useRef(incomingCallRequest);
+  incomingCallRequestRef.current = incomingCallRequest;
   const [remoteUsername, setRemoteUsername] = useState<string>('User');
 
   // Advanced features
@@ -426,6 +429,8 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
   const handleLeavePrivateChatRef = useRef<() => void>(() => {});
+  const activeCallingUserRef = useRef(activeCallingUser);
+  activeCallingUserRef.current = activeCallingUser;
   const rateLimiter = useRef(new RateLimiter(5, 5000));
 
   const createPlaceholderVideoTrack = () => {
@@ -627,6 +632,8 @@ export default function App() {
   };
 
   const handleLeavePrivateChat = () => {
+    ringtone.stop();
+    setIncomingCallRequest(null);
     if (privateConnectionTimeoutRef.current) {
       clearTimeout(privateConnectionTimeoutRef.current);
       privateConnectionTimeoutRef.current = null;
@@ -754,10 +761,25 @@ export default function App() {
   };
 
   const handleCancelCall = () => {
-    handleEndCall(true);
+    ringtone.stop();
     if (ringingTimeout) clearTimeout(ringingTimeout);
     setRingingTimeout(null);
-    ringtone.stop();
+
+    // If it's a real private chat call, send a cancel signal
+    if (activeCallingUser && !activeCallingUser.id?.startsWith('demo-')) {
+      const remoteId = peerEngine.connection?.peer;
+      if (remoteId) {
+        peerEngine.sendMessage({
+          id: uuidv4(),
+          senderId: peerEngine.id,
+          senderName: usernameRef.current || 'User',
+          type: 'call_cancel' as any,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    handleEndCall(true);
     setActiveCallingUser(null);
     setShowPaywall(false);
     setSelectedPlan(null);
@@ -770,6 +792,64 @@ export default function App() {
     setCurrentTxnId('');
     setShowQrCode(false);
     isMatchInitiatorRef.current = false;
+  };
+
+  const handleAcceptCall = async () => {
+    if (!incomingCallRequest) return;
+    ringtone.stop();
+
+    const isVideo = incomingCallRequest.isVideo;
+    const remoteId = incomingCallRequest.fromId;
+
+    setIncomingCallRequest(null);
+
+    try {
+      // Get media stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
+      if (!isVideo) {
+        const pTrack = createPlaceholderVideoTrack();
+        placeholderVideoTrackRef.current = pTrack;
+        stream.addTrack(pTrack);
+      }
+
+      peerEngine.localStream = stream;
+      setInCall(true);
+
+      // Send accept signal back to initiator
+      peerEngine.sendMessage({
+        id: uuidv4(),
+        senderId: peerEngine.id,
+        senderName: usernameRef.current || 'User',
+        type: 'call_accept' as any,
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      alert("Permission denied. Could not access camera or microphone.");
+      // Send decline to remote peer so they aren't stuck calling forever
+      peerEngine.sendMessage({
+        id: uuidv4(),
+        senderId: peerEngine.id,
+        senderName: usernameRef.current || 'User',
+        type: 'call_decline' as any,
+        timestamp: Date.now()
+      });
+    }
+  };
+
+  const handleRejectCall = () => {
+    if (!incomingCallRequest) return;
+    ringtone.stop();
+
+    const remoteId = incomingCallRequest.fromId;
+    setIncomingCallRequest(null);
+
+    peerEngine.sendMessage({
+      id: uuidv4(),
+      senderId: peerEngine.id,
+      senderName: usernameRef.current || 'User',
+      type: 'call_decline' as any,
+      timestamp: Date.now()
+    });
   };
 
   const handleVerifyPayment = () => {
@@ -1105,6 +1185,56 @@ export default function App() {
         } as any);
         return;
       }
+      if (msg.type === 'call_invite') {
+        setIncomingCallRequest({
+          fromId: msg.senderId,
+          fromName: msg.senderName,
+          isVideo: msg.text === 'video'
+        });
+        ringtone.start();
+        return;
+      }
+      if (msg.type === 'call_cancel') {
+        ringtone.stop();
+        setIncomingCallRequest(null);
+        return;
+      }
+      if (msg.type === 'call_decline') {
+        ringtone.stop();
+        setActiveCallingUser(null);
+        alert(`${msg.senderName} declined the call.`);
+        return;
+      }
+      if (msg.type === 'call_accept') {
+        ringtone.stop();
+        const isVideo = activeCallingUserRef.current?.isVideo || false;
+        navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })
+          .then((stream) => {
+            if (!isVideo) {
+              const pTrack = createPlaceholderVideoTrack();
+              placeholderVideoTrackRef.current = pTrack;
+              stream.addTrack(pTrack);
+            }
+            
+            const call = peerEngine.startCall(
+              msg.senderId,
+              stream,
+              (rStream) => {
+                setRemoteStream(rStream);
+              },
+              { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+            );
+            
+            if (call) {
+              setInCall(true);
+            }
+          })
+          .catch((err) => {
+            alert("Microphone permission required for calls.");
+            handleCancelCall();
+          });
+        return;
+      }
       if (msg.type === 'random_match_handshake') {
         console.log("Handshake received from matched user:", msg.senderName, msg.senderId);
         randomMatchActiveRef.current = msg.senderId;
@@ -1179,26 +1309,37 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
-      if (window.confirm(`Incoming ${isVideo ? 'video' : 'voice'} call! Accept?`)) {
-        navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo }).then((stream) => {
-          if (!isVideo) {
-            const pTrack = createPlaceholderVideoTrack();
-            placeholderVideoTrackRef.current = pTrack;
-            stream.addTrack(pTrack);
-          }
-
-          call.on('stream', (rStream) => {
-            setRemoteStream(rStream);
-          });
-          call.answer(stream);
-          peerEngine.callConnection = call;
-          peerEngine.localStream = stream;
-          setInCall(true);
-        }).catch(() => {
-          alert("Permission denied. Could not start media devices.");
+      if (peerEngine.localStream) {
+        // Automatically answer since the user already accepted via the incoming call request UI modal!
+        call.on('stream', (rStream) => {
+          setRemoteStream(rStream);
         });
+        call.answer(peerEngine.localStream);
+        peerEngine.callConnection = call;
+        setInCall(true);
       } else {
-        call.close();
+        // Fallback to window confirm if stream is not pre-acquired
+        if (window.confirm(`Incoming ${isVideo ? 'video' : 'voice'} call! Accept?`)) {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo }).then((stream) => {
+            if (!isVideo) {
+              const pTrack = createPlaceholderVideoTrack();
+              placeholderVideoTrackRef.current = pTrack;
+              stream.addTrack(pTrack);
+            }
+
+            call.on('stream', (rStream) => {
+              setRemoteStream(rStream);
+            });
+            call.answer(stream);
+            peerEngine.callConnection = call;
+            peerEngine.localStream = stream;
+            setInCall(true);
+          }).catch(() => {
+            alert("Permission denied. Could not start media devices.");
+          });
+        } else {
+          call.close();
+        }
       }
     };
 
@@ -1731,33 +1872,28 @@ export default function App() {
     });
   };
 
-  const initiateCall = async (isVideo: boolean = false) => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
-      if (!isVideo) {
-        const pTrack = createPlaceholderVideoTrack();
-        placeholderVideoTrackRef.current = pTrack;
-        stream.addTrack(pTrack);
-      }
+  const initiateCall = (isVideo: boolean = false) => {
+    const remoteId = peerEngine.connection?.peer;
+    if (!remoteId) return alert('No active peer connected');
 
-      const remoteId = peerEngine.connection?.peer;
-      if (!remoteId) return alert('No active peer connected');
+    setActiveCallingUser({
+      id: remoteId,
+      name: remoteUsername,
+      avatar: '👤',
+      isVideo: isVideo
+    });
 
-      const call = peerEngine.startCall(
-        remoteId,
-        stream,
-        (rStream) => {
-          setRemoteStream(rStream);
-        },
-        { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
-      );
+    ringtone.start();
 
-      if (call) {
-        setInCall(true);
-      }
-    } catch (err) {
-      alert("Microphone permission required for calls.");
-    }
+    // Send call invite signal to remote peer
+    peerEngine.sendMessage({
+      id: uuidv4(),
+      senderId: peerEngine.id,
+      senderName: usernameRef.current || 'User',
+      type: 'call_invite' as any,
+      text: isVideo ? 'video' : 'voice',
+      timestamp: Date.now()
+    });
   };
 
   const toggleMute = () => {
@@ -2368,6 +2504,44 @@ export default function App() {
                 }}
               >
                 Accept
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Incoming Call Request UI Overlay */}
+        {incomingCallRequest && (
+          <div className="call-overlay" style={{ zIndex: 4000, background: 'linear-gradient(135deg, #111827, #1f2937)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem' }}>
+            <div className="ring-radar">
+              <div className="radar-wave" style={{ background: 'var(--primary)' }}></div>
+              <div className="radar-wave" style={{ background: 'var(--primary)', animationDelay: '0.5s' }}></div>
+              <div className="radar-wave" style={{ background: 'var(--primary)', animationDelay: '1s' }}></div>
+              <div className="ring-avatar" style={{ background: 'var(--primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold' }}>
+                👤
+              </div>
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 'bold', color: 'white', marginBottom: '0.2rem', textAlign: 'center' }}>
+              {incomingCallRequest.fromName} is calling...
+            </h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', textAlign: 'center' }}>
+              Incoming secure private {incomingCallRequest.isVideo ? 'Video' : 'Voice'} Call
+            </p>
+            <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', width: '100%' }}>
+              <button
+                className="call-ctrl-btn end"
+                onClick={handleRejectCall}
+                title="Decline Call"
+                style={{ width: '64px', height: '64px', background: 'var(--danger)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}
+              >
+                <PhoneOff size={24} />
+              </button>
+              <button
+                className="call-ctrl-btn"
+                onClick={handleAcceptCall}
+                title="Accept Call"
+                style={{ width: '64px', height: '64px', background: 'var(--primary)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#000' }}
+              >
+                <Phone size={24} />
               </button>
             </div>
           </div>
