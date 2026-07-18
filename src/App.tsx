@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle } from 'lucide-react';
+import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -109,6 +109,22 @@ const GENERIC_SUB_LOCS = [
   'Payyanur', 'Taliparamba', 'Kanhangad', 'Nileshwar', 'Kalpetta'
 ];
 
+const KERALA_CITIES = [
+  { name: 'Kochi, Kerala', lat: 9.9312, lon: 76.2673 },
+  { name: 'Kozhikode, Kerala', lat: 11.2588, lon: 75.7804 },
+  { name: 'Trivandrum, Kerala', lat: 8.5241, lon: 76.9366 },
+  { name: 'Thrissur, Kerala', lat: 10.5276, lon: 76.2144 },
+  { name: 'Malappuram, Kerala', lat: 11.0720, lon: 76.0740 },
+  { name: 'Kollam, Kerala', lat: 8.8932, lon: 76.6141 },
+  { name: 'Alappuzha, Kerala', lat: 9.4981, lon: 76.3388 },
+  { name: 'Kottayam, Kerala', lat: 9.5916, lon: 76.5222 },
+  { name: 'Palakkad, Kerala', lat: 10.7867, lon: 76.6548 },
+  { name: 'Kannur, Kerala', lat: 11.8745, lon: 75.3704 },
+  { name: 'Kasaragod, Kerala', lat: 12.5102, lon: 74.9852 },
+  { name: 'Pathanamthitta, Kerala', lat: 9.2648, lon: 76.7870 },
+  { name: 'Idukki, Kerala', lat: 9.8496, lon: 76.9904 },
+  { name: 'Wayanad, Kerala', lat: 11.6050, lon: 76.0825 }
+];
 
 const getProfileLocation = (index: number, cityName: string, distance: number, isNearest3: boolean) => {
   const cleanCity = cityName.split(',')[0].trim();
@@ -147,17 +163,26 @@ const getProfileLocation = (index: number, cityName: string, distance: number, i
     }
 
     const subLoc = subLocList[index % subLocList.length];
-    return subLoc;
+    return `${subLoc}, ${cleanCity}`;
   } else {
     // For further users, map to neighboring/other Kerala cities
     const otherCities = [
+      { name: 'Kochi', subLocs: KOCHI_SUB_LOCS },
+      { name: 'Kozhikode', subLocs: CALICUT_SUB_LOCS },
+      { name: 'Trivandrum', subLocs: TRIVANDRUM_SUB_LOCS },
+      { name: 'Thrissur', subLocs: THRISSUR_SUB_LOCS },
+      { name: 'Malappuram', subLocs: MALAPPURAM_SUB_LOCS },
+      { name: 'Kollam', subLocs: KOLLAM_SUB_LOCS },
       { name: 'Alappuzha', subLocs: ALAPPUZHA_SUB_LOCS },
       { name: 'Kottayam', subLocs: KOTTAYAM_SUB_LOCS },
-      { name: 'Thrissur', subLocs: THRISSUR_SUB_LOCS },
-      { name: 'Kollam', subLocs: KOLLAM_SUB_LOCS },
       { name: 'Palakkad', subLocs: PALAKKAD_SUB_LOCS },
-      { name: 'Pathanamthitta', subLocs: PATHANAMTHITTA_SUB_LOCS }
-    ];
+      { name: 'Kannur', subLocs: KANNUR_SUB_LOCS },
+      { name: 'Kasaragod', subLocs: KASARAGOD_SUB_LOCS },
+      { name: 'Pathanamthitta', subLocs: PATHANAMTHITTA_SUB_LOCS },
+      { name: 'Idukki', subLocs: IDUKKI_SUB_LOCS },
+      { name: 'Wayanad', subLocs: WAYANAD_SUB_LOCS }
+    ].filter(c => c.name.toLowerCase() !== lowerCity && !lowerCity.includes(c.name.toLowerCase()));
+
     // Choose city based on index
     const cityChoice = otherCities[index % otherCities.length];
     // Select sub-location in that city based on distance
@@ -165,7 +190,7 @@ const getProfileLocation = (index: number, cityName: string, distance: number, i
     const subLoc = cityChoice.subLocs[subLocIndex];
     return `${subLoc}, ${cityChoice.name}`;
   }
-};
+}
 
 const DEMO_PROFILES = [
   { id: 'demo-1', name: 'Aisha', gender: 'female', status: 'online', latOffset: 0.012, lonOffset: -0.008, defaultDist: 1.5, avatar: 'Ai' },
@@ -236,8 +261,9 @@ export default function App() {
 
   // Random Calling states
   const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
-  const [userCoords] = useState<{ lat: number; lon: number } | null>(null);
-  const [detectedCity] = useState<string>('Kochi, Kerala');
+  const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [detectedCity, setDetectedCity] = useState<string>('Kochi, Kerala');
+  const [locationSource, setLocationSource] = useState<'GPS' | 'Network' | 'Default'>('Default');
   const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
   const [showPaywall, setShowPaywall] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
@@ -355,6 +381,78 @@ export default function App() {
   };
 
   useEffect(() => {
+    const locateUser = async () => {
+      // 1. Try browser Geolocation first
+      if (typeof window !== 'undefined' && navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 6000,
+              maximumAge: 0
+            });
+          });
+
+          const { latitude, longitude } = position.coords;
+          setUserCoords({ lat: latitude, lon: longitude });
+          setLocationSource('GPS');
+
+          // Find nearest major Kerala city/district
+          let nearestCity = KERALA_CITIES[0];
+          let minDistance = Infinity;
+          KERALA_CITIES.forEach((city) => {
+            const dist = parseFloat(calculateDistance(latitude, longitude, city.lat, city.lon));
+            if (dist < minDistance) {
+              minDistance = dist;
+              nearestCity = city;
+            }
+          });
+          setDetectedCity(nearestCity.name);
+          return; // Success
+        } catch (gpsError) {
+          console.warn("GPS Geolocation failed or denied, trying Network fallback...", gpsError);
+        }
+      }
+
+      // 2. Try IP Geolocation fallback
+      try {
+        const response = await fetch('https://freeipapi.com/api/json');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+            const lat = data.latitude;
+            const lon = data.longitude;
+            setUserCoords({ lat, lon });
+            setLocationSource('Network');
+
+            // Find nearest major Kerala city/district
+            let nearestCity = KERALA_CITIES[0];
+            let minDistance = Infinity;
+            KERALA_CITIES.forEach((city) => {
+              const dist = parseFloat(calculateDistance(lat, lon, city.lat, city.lon));
+              if (dist < minDistance) {
+                minDistance = dist;
+                nearestCity = city;
+              }
+            });
+            setDetectedCity(nearestCity.name);
+            return; // Success
+          }
+        }
+      } catch (ipError) {
+        console.warn("Network IP Geolocation fallback failed:", ipError);
+      }
+
+      // 3. Complete Fallback to default
+      setUserCoords({ lat: 9.9312, lon: 76.2673 });
+      setDetectedCity('Kochi, Kerala');
+      setLocationSource('Default');
+    };
+
+    locateUser();
+  }, []);
+
+  useEffect(() => {
     // Pulse Live Users Count
     const interval = setInterval(() => {
       setLiveUsers(prev => Math.max(375, prev + Math.floor(Math.random() * 5) - 2));
@@ -391,7 +489,33 @@ export default function App() {
       setShowLoginModal(true);
       return;
     }
-    setActiveCallingUser(user);
+    
+    // Enrich user with locationText and calculatedDistance if missing
+    const enrichedUser = { ...user };
+    if (enrichedUser.calculatedDistance === undefined) {
+      enrichedUser.calculatedDistance = userCoords
+        ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + user.latOffset, userCoords.lon + user.lonOffset))
+        : user.defaultDist;
+    }
+    if (!enrichedUser.locationText) {
+      const sortedOnline = demoUsers
+        .filter(p => {
+          const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
+          return matchesGender && p.status === 'online';
+        })
+        .map(p => {
+          const distance = userCoords
+            ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + p.latOffset, userCoords.lon + p.lonOffset))
+            : p.defaultDist;
+          return { ...p, calculatedDistance: distance };
+        })
+        .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
+      
+      const idx = sortedOnline.findIndex(p => p.id === user.id);
+      enrichedUser.locationText = getProfileLocation(idx >= 0 ? idx : 0, detectedCity, enrichedUser.calculatedDistance, idx < 3 && idx >= 0);
+    }
+
+    setActiveCallingUser(enrichedUser);
     ringtone.start();
 
     if (isPremium) {
@@ -1546,10 +1670,16 @@ export default function App() {
               {activeCallingUser.avatar}
             </div>
           </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>
             Calling {activeCallingUser.name}...
           </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '3rem' }}>
+          {activeCallingUser.locationText && (
+            <div style={{ color: '#10b981', fontSize: '0.95rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
+              <MapPin size={16} />
+              <span>{activeCallingUser.locationText} ({activeCallingUser.calculatedDistance} km away)</span>
+            </div>
+          )}
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
             Establishing secure encrypted line
           </p>
           <button
@@ -2127,6 +2257,12 @@ export default function App() {
                     {activeCallingUser.avatar}
                   </div>
                   <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser.name}</h2>
+                  {activeCallingUser.locationText && (
+                    <div style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={14} />
+                      <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km away</span>
+                    </div>
+                  )}
                   <div className="call-duration" style={{ color: 'var(--primary)', fontSize: '1rem', fontFamily: 'monospace' }}>
                     {formatCallTime(callDuration)}
                   </div>
@@ -2295,6 +2431,28 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                <div className="filter-section" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="filter-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={14} color="var(--primary)" /> Location:
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>
+                      {detectedCity.replace(', Kerala', '')}
+                    </span>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      background: locationSource === 'GPS' ? 'rgba(74, 222, 128, 0.15)' : locationSource === 'Network' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      color: locationSource === 'GPS' ? '#4ade80' : locationSource === 'Network' ? '#60a5fa' : '#f59e0b',
+                      border: '1px solid currentColor',
+                      fontWeight: 500
+                    }}>
+                      {locationSource === 'GPS' ? 'GPS' : locationSource === 'Network' ? 'Network' : 'Default'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {/* Matches List Grid */}
@@ -2316,6 +2474,7 @@ export default function App() {
                     const distance = profile.calculatedDistance;
                     const isOnline = profile.status === 'online';
                     const locationText = getProfileLocation(idx, detectedCity, distance, idx < 3);
+                    const enrichedProfile = { ...profile, locationText };
 
                     return (
                       <div key={profile.id} className="match-card glass">
@@ -2339,7 +2498,7 @@ export default function App() {
 
                         <button
                           className="match-call-btn"
-                          onClick={() => handleCallDemoUser(profile)}
+                          onClick={() => handleCallDemoUser(enrichedProfile)}
                           title={`Call ${profile.name}`}
                         >
                           <Phone size={18} />
