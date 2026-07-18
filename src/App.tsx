@@ -799,7 +799,6 @@ export default function App() {
     ringtone.stop();
 
     const isVideo = incomingCallRequest.isVideo;
-    const remoteId = incomingCallRequest.fromId;
 
     setIncomingCallRequest(null);
 
@@ -840,7 +839,6 @@ export default function App() {
     if (!incomingCallRequest) return;
     ringtone.stop();
 
-    const remoteId = incomingCallRequest.fromId;
     setIncomingCallRequest(null);
 
     peerEngine.sendMessage({
@@ -1229,7 +1227,7 @@ export default function App() {
               setInCall(true);
             }
           })
-          .catch((err) => {
+          .catch(() => {
             alert("Microphone permission required for calls.");
             handleCancelCall();
           });
