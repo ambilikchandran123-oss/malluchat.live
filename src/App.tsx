@@ -942,6 +942,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleUnload = () => {
+      peerEngine.destroy();
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('unload', handleUnload);
+
     // Fetch cached messages from our hosted backend to load history
     const fetchHistoryUrl = isDev
       ? `${BACKEND_URL}/api/messages`
@@ -1367,6 +1373,8 @@ export default function App() {
     return () => {
       isUnmounted = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('unload', handleUnload);
       peerEngine.destroy();
       if (ws) ws.close();
     };

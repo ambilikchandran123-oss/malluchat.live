@@ -46,7 +46,6 @@ export class PeerEngine {
             }
         }
         this.id = id;
-        onReady(id);
 
         this.peer = new Peer(id, {
             debug: 1,
@@ -77,7 +76,21 @@ export class PeerEngine {
             }
         });
 
+        // Set a 3-second connection timeout to bypass slow unavailable-id detection on refreshes
+        const connectionTimeout = setTimeout(() => {
+            if (this.peer && !this.peer.open && !this.peer.destroyed) {
+                console.warn(`Peer ID connection timed out. Generating a fresh one...`);
+                const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                if (typeof window !== 'undefined' && window.localStorage) {
+                    window.localStorage.setItem('malluchat_stable_peer_id', newId);
+                }
+                this.peer.destroy();
+                this.initialize(onReady, onError);
+            }
+        }, 3000);
+
         this.peer.on('open', (connectedId) => {
+            clearTimeout(connectionTimeout);
             this.id = connectedId;
             onReady(connectedId);
         });
@@ -99,11 +112,8 @@ export class PeerEngine {
             }
         });
 
-        this.peer.on('disconnected', () => {
-            this.peer?.reconnect();
-        });
-
         this.peer.on('error', (err: any) => {
+            clearTimeout(connectionTimeout);
             if (err && err.type === 'unavailable-id') {
                 console.warn(`Peer ID ${id} is already in use or taken. Generating a new one...`);
                 const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
