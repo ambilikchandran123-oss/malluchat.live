@@ -202,10 +202,6 @@ export class PeerEngine {
             this.callConnection.close();
             this.callConnection = null;
         }
-        if (this.connection) {
-            this.connection.close();
-            this.connection = null;
-        }
         if (stopTracks && this.localStream) {
             this.localStream.getTracks().forEach(track => track.stop());
             this.localStream = null;
@@ -213,12 +209,16 @@ export class PeerEngine {
         if (this.onCallEnded) this.onCallEnded();
     }
 
-    destroy() {
-        this.endCall();
+    disconnectChat() {
         if (this.connection) {
             this.connection.close();
             this.connection = null;
         }
+        this.endCall(true);
+    }
+
+    destroy() {
+        this.disconnectChat();
         if (this.peer) {
             this.peer.destroy();
             this.peer = null;

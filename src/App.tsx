@@ -425,6 +425,7 @@ export default function App() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
+  const handleLeavePrivateChatRef = useRef<() => void>(() => {});
   const rateLimiter = useRef(new RateLimiter(5, 5000));
 
   const createPlaceholderVideoTrack = () => {
@@ -604,10 +605,6 @@ export default function App() {
       clearTimeout(matchConnectionTimeoutRef.current);
       matchConnectionTimeoutRef.current = null;
     }
-    if (privateConnectionTimeoutRef.current) {
-      clearTimeout(privateConnectionTimeoutRef.current);
-      privateConnectionTimeoutRef.current = null;
-    }
     peerEngine.endCall(stopTracks);
     setInCall(false);
     setActiveCallingUser(null);
@@ -621,12 +618,36 @@ export default function App() {
         preAcquiredStreamRef.current = null;
       }
     }
-    setStatus('disconnected');
-    setMessages([]);
-    if (viewModeRef.current === 'private') {
-      setViewMode('public');
+    
+    // Only completely disconnect private chat state if not in Private view mode
+    if (viewModeRef.current !== 'private') {
+      setStatus('disconnected');
+      setMessages([]);
     }
   };
+
+  const handleLeavePrivateChat = () => {
+    if (privateConnectionTimeoutRef.current) {
+      clearTimeout(privateConnectionTimeoutRef.current);
+      privateConnectionTimeoutRef.current = null;
+    }
+    peerEngine.disconnectChat();
+    setInCall(false);
+    setActiveCallingUser(null);
+    setIsCameraOff(true);
+    setRemoteCameraStatus(false);
+    setRemoteStream(null);
+    isMatchInitiatorRef.current = false;
+    if (preAcquiredStreamRef.current) {
+      preAcquiredStreamRef.current.getTracks().forEach(t => t.stop());
+      preAcquiredStreamRef.current = null;
+    }
+    setStatus('disconnected');
+    setMessages([]);
+    setViewMode('public');
+  };
+
+  handleLeavePrivateChatRef.current = handleLeavePrivateChat;
 
   const handleSkipCall = () => {
     const currentCallingUserId = activeCallingUser?.id;
@@ -1036,14 +1057,8 @@ export default function App() {
     };
 
     peerEngine.onDisconnected = () => {
-      if (privateConnectionTimeoutRef.current) {
-        clearTimeout(privateConnectionTimeoutRef.current);
-        privateConnectionTimeoutRef.current = null;
-      }
-      setStatus('disconnected');
-      setMessages([]);
+      handleLeavePrivateChatRef.current();
       if (viewModeRef.current === 'private') {
-        setViewMode('public');
         alert("The other user has disconnected.");
       }
     };
@@ -1576,9 +1591,7 @@ export default function App() {
     if (privateConnectionTimeoutRef.current) clearTimeout(privateConnectionTimeoutRef.current);
     privateConnectionTimeoutRef.current = setTimeout(() => {
       alert("Connection timed out. The user might be offline or has left.");
-      setViewMode('public');
-      setStatus('disconnected');
-      peerEngine.endCall(true);
+      handleLeavePrivateChat();
     }, 12000); // 12 seconds timeout
   };
 
@@ -2536,7 +2549,7 @@ export default function App() {
                 </>
               )}
               {viewMode === 'private' && (
-                <button className="icon-btn" onClick={() => handleEndCall()} title="Leave">
+                <button className="icon-btn" onClick={() => handleLeavePrivateChat()} title="Leave">
                   <X size={20} />
                 </button>
               )}
