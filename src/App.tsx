@@ -1206,31 +1206,45 @@ export default function App() {
       if (msg.type === 'call_accept') {
         ringtone.stop();
         const isVideo = activeCallingUserRef.current?.isVideo || false;
-        navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })
-          .then((stream) => {
-            if (!isVideo) {
-              const pTrack = createPlaceholderVideoTrack();
-              placeholderVideoTrackRef.current = pTrack;
-              stream.addTrack(pTrack);
-            }
-            
-            const call = peerEngine.startCall(
-              msg.senderId,
-              stream,
-              (rStream) => {
-                setRemoteStream(rStream);
-              },
-              { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
-            );
-            
-            if (call) {
-              setInCall(true);
-            }
-          })
-          .catch(() => {
-            alert("Microphone permission required for calls.");
-            handleCancelCall();
-          });
+        
+        if (peerEngine.localStream) {
+          const call = peerEngine.startCall(
+            msg.senderId,
+            peerEngine.localStream,
+            (rStream) => {
+              setRemoteStream(rStream);
+            },
+            { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+          );
+          if (call) {
+            setInCall(true);
+          }
+        } else {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })
+            .then((stream) => {
+              if (!isVideo) {
+                const pTrack = createPlaceholderVideoTrack();
+                placeholderVideoTrackRef.current = pTrack;
+                stream.addTrack(pTrack);
+              }
+              peerEngine.localStream = stream;
+              const call = peerEngine.startCall(
+                msg.senderId,
+                stream,
+                (rStream) => {
+                  setRemoteStream(rStream);
+                },
+                { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+              );
+              if (call) {
+                setInCall(true);
+              }
+            })
+            .catch(() => {
+              alert("Microphone permission required for calls.");
+              handleCancelCall();
+            });
+        }
         return;
       }
       if (msg.type === 'random_match_handshake') {
@@ -1870,28 +1884,42 @@ export default function App() {
     });
   };
 
-  const initiateCall = (isVideo: boolean = false) => {
+  const initiateCall = async (isVideo: boolean = false) => {
     const remoteId = peerEngine.connection?.peer;
     if (!remoteId) return alert('No active peer connected');
 
-    setActiveCallingUser({
-      id: remoteId,
-      name: remoteUsername,
-      avatar: '👤',
-      isVideo: isVideo
-    });
+    try {
+      // Pre-acquire camera/microphone stream directly in the click event (gesture stack) for iOS Safari support
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo });
+      if (!isVideo) {
+        const pTrack = createPlaceholderVideoTrack();
+        placeholderVideoTrackRef.current = pTrack;
+        stream.addTrack(pTrack);
+      }
 
-    ringtone.start();
+      peerEngine.localStream = stream;
 
-    // Send call invite signal to remote peer
-    peerEngine.sendMessage({
-      id: uuidv4(),
-      senderId: peerEngine.id,
-      senderName: usernameRef.current || 'User',
-      type: 'call_invite' as any,
-      text: isVideo ? 'video' : 'voice',
-      timestamp: Date.now()
-    });
+      setActiveCallingUser({
+        id: remoteId,
+        name: remoteUsername,
+        avatar: '👤',
+        isVideo: isVideo
+      });
+
+      ringtone.start();
+
+      // Send call invite signal to remote peer
+      peerEngine.sendMessage({
+        id: uuidv4(),
+        senderId: peerEngine.id,
+        senderName: usernameRef.current || 'User',
+        type: 'call_invite' as any,
+        text: isVideo ? 'video' : 'voice',
+        timestamp: Date.now()
+      });
+    } catch (err) {
+      alert("Microphone/Camera permission required for calls.");
+    }
   };
 
   const toggleMute = () => {
