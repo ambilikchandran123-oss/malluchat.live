@@ -126,25 +126,27 @@ const KERALA_CITIES = [
   { name: 'Wayanad, Kerala', lat: 11.6050, lon: 76.0825 }
 ];
 
-const getProfileLocation = (profile: any, userCoords: { lat: number; lon: number } | null, index: number) => {
+const getProfileLocationAndDistance = (profile: any, userCoords: { lat: number; lon: number } | null, index: number) => {
   const userLat = userCoords?.lat ?? 9.9312;
   const userLon = userCoords?.lon ?? 76.2673;
-  const profileLat = userLat + (profile.latOffset ?? 0);
-  const profileLon = userLon + (profile.lonOffset ?? 0);
 
-  // Find the closest city in KERALA_CITIES to (profileLat, profileLon)
-  let closestCity = KERALA_CITIES[0];
-  let minDistance = Infinity;
-
-  KERALA_CITIES.forEach((city) => {
-    const dist = parseFloat(calculateDistance(profileLat, profileLon, city.lat, city.lon));
-    if (dist < minDistance) {
-      minDistance = dist;
-      closestCity = city;
-    }
+  // Sort KERALA_CITIES by distance from active user coordinates
+  const sortedCities = [...KERALA_CITIES].sort((a, b) => {
+    const distA = parseFloat(calculateDistance(userLat, userLon, a.lat, a.lon));
+    const distB = parseFloat(calculateDistance(userLat, userLon, b.lat, b.lon));
+    return distA - distB;
   });
 
-  const cleanCity = closestCity.name.split(',')[0].trim();
+  let chosenCity = sortedCities[0];
+  const isNearest = index % 10 < 7; // 70% nearest city, 30% neighboring districts
+
+  if (!isNearest && sortedCities.length > 1) {
+    // Pick one of the 4 closest neighboring cities/districts (excluding the closest one at index 0)
+    const neighborIndex = 1 + (index % Math.min(4, sortedCities.length - 1));
+    chosenCity = sortedCities[neighborIndex];
+  }
+
+  const cleanCity = chosenCity.name.split(',')[0].trim();
   const lowerCity = cleanCity.toLowerCase();
 
   let subLocList = GENERIC_SUB_LOCS;
@@ -179,7 +181,23 @@ const getProfileLocation = (profile: any, userCoords: { lat: number; lon: number
   }
 
   const subLoc = subLocList[index % subLocList.length];
-  return `${subLoc}, ${cleanCity}`;
+  const locationText = `${subLoc}, ${cleanCity}`;
+
+  // Calculate distance:
+  let distance = 0;
+  if (isNearest) {
+    // Proximity offset based distance (typically 1.5 - 20 km)
+    const distVal = parseFloat(calculateDistance(userLat, userLon, userLat + (profile.latOffset ?? 0), userLon + (profile.lonOffset ?? 0)));
+    distance = isNaN(distVal) ? (profile.defaultDist ?? 2.5) : distVal;
+  } else {
+    // Proximity to the neighboring city center plus small offset
+    const cityDist = parseFloat(calculateDistance(userLat, userLon, chosenCity.lat, chosenCity.lon));
+    const offsetDist = Math.abs((profile.latOffset ?? 0) * 110) + Math.abs((profile.lonOffset ?? 0) * 110);
+    const distVal = parseFloat((cityDist + offsetDist).toFixed(1));
+    distance = isNaN(distVal) ? (profile.defaultDist ?? 45.0) : distVal;
+  }
+
+  return { locationText, distance };
 };
 
 const getUserSubLocation = (username: string, cityName: string) => {
@@ -531,27 +549,16 @@ export default function App() {
     
     // Enrich user with locationText and calculatedDistance if missing
     const enrichedUser = { ...user };
-    if (enrichedUser.calculatedDistance === undefined) {
-      enrichedUser.calculatedDistance = userCoords
-        ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + user.latOffset, userCoords.lon + user.lonOffset))
-        : user.defaultDist;
-    }
-    if (!enrichedUser.locationText) {
+    if (!enrichedUser.locationText || enrichedUser.calculatedDistance === undefined) {
       const sortedOnline = demoUsers
         .filter(p => {
           const matchesGender = genderFilterRef.current === 'all' || p.gender === genderFilterRef.current;
           return matchesGender && p.status === 'online';
-        })
-        .map(p => {
-          const distance = userCoords
-            ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + p.latOffset, userCoords.lon + p.lonOffset))
-            : p.defaultDist;
-          return { ...p, calculatedDistance: distance };
-        })
-        .sort((a, b) => a.calculatedDistance - b.calculatedDistance);
-      
+        });
       const idx = sortedOnline.findIndex(p => p.id === user.id);
-      enrichedUser.locationText = getProfileLocation(user, userCoords, idx >= 0 ? idx : 0);
+      const locInfo = getProfileLocationAndDistance(user, userCoords, idx >= 0 ? idx : 0);
+      enrichedUser.locationText = locInfo.locationText;
+      enrichedUser.calculatedDistance = locInfo.distance;
     }
 
     setActiveCallingUser(enrichedUser);
@@ -2512,18 +2519,17 @@ export default function App() {
                     const isOnline = profile.status === 'online';
                     return matchesGender && isOnline;
                   })
-                  .map(profile => {
-                    const distance = userCoords
-                      ? parseFloat(calculateDistance(userCoords.lat, userCoords.lon, userCoords.lat + profile.latOffset, userCoords.lon + profile.lonOffset))
-                      : profile.defaultDist;
-                    return { ...profile, calculatedDistance: distance };
+                  .map((profile, idx) => {
+                    const locInfo = getProfileLocationAndDistance(profile, userCoords, idx);
+                    return {
+                      ...profile,
+                      locationText: locInfo.locationText,
+                      calculatedDistance: locInfo.distance
+                    };
                   })
                   .sort((a, b) => a.calculatedDistance - b.calculatedDistance)
-                  .map((profile, idx) => {
-                    const distance = profile.calculatedDistance;
+                  .map((profile) => {
                     const isOnline = profile.status === 'online';
-                    const locationText = getProfileLocation(profile, userCoords, idx);
-                    const enrichedProfile = { ...profile, locationText };
 
                     return (
                       <div key={profile.id} className="match-card glass">
@@ -2539,15 +2545,15 @@ export default function App() {
                             <span className="match-name">{profile.name}</span>
                           </div>
                           <div className="match-location">
-                            <span>{locationText}</span>
+                            <span>{profile.locationText}</span>
                             <span>•</span>
-                            <span className="match-distance">{distance} km away</span>
+                            <span className="match-distance">{profile.calculatedDistance} km away</span>
                           </div>
                         </div>
 
                         <button
                           className="match-call-btn"
-                          onClick={() => handleCallDemoUser(enrichedProfile)}
+                          onClick={() => handleCallDemoUser(profile)}
                           title={`Call ${profile.name}`}
                         >
                           <Phone size={18} />
