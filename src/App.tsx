@@ -12,7 +12,7 @@ import './index.css';
 const sentSound = new Audio('/sent.mp3');
 const receivedSound = new Audio('/received.mp3');
 
-const isDev = window.location.port === '5173';
+const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const BACKEND_URL = isDev ? 'http://localhost:3000' : 'https://ntfy.sh/malluchat_global_room_v4';
 const WS_URL = isDev ? 'ws://localhost:3000/ws' : 'wss://ntfy.sh/malluchat_global_room_v4/ws';
 const POST_URL = isDev ? `${BACKEND_URL}/api/messages` : BACKEND_URL;
