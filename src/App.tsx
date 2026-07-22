@@ -315,7 +315,7 @@ export default function App() {
   const [genderFilter, setGenderFilter] = useState<'female' | 'male' | 'all'>('all');
   const [userCoords, setUserCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [detectedCity, setDetectedCity] = useState<string>('Kochi, Kerala');
-  const [locationSource, setLocationSource] = useState<'GPS' | 'Network' | 'Default'>('Default');
+  const [, setLocationSource] = useState<'GPS' | 'Network' | 'Default'>('Default');
   const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
   const [showPaywall, setShowPaywall] = useState<boolean>(false);
   const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
@@ -2794,25 +2794,6 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="filter-section" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPin size={14} color="var(--primary)" />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>
-                      {userLocationText}
-                    </span>
-                    <span style={{
-                      fontSize: '0.75rem',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      background: locationSource === 'GPS' ? 'rgba(74, 222, 128, 0.15)' : locationSource === 'Network' ? 'rgba(96, 165, 250, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                      color: locationSource === 'GPS' ? '#4ade80' : locationSource === 'Network' ? '#60a5fa' : '#f59e0b',
-                      border: '1px solid currentColor',
-                      fontWeight: 500
-                    }}>
-                      {locationSource === 'GPS' ? 'GPS' : locationSource === 'Network' ? 'Network' : 'Default'}
-                    </span>
-                  </div>
-                </div>
               </div>
 
               {/* Matches List Grid */}
