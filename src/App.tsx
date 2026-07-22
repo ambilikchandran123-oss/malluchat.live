@@ -2795,10 +2795,8 @@ export default function App() {
                 </div>
 
                 <div className="filter-section" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="filter-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={14} color="var(--primary)" /> Location:
-                  </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <MapPin size={14} color="var(--primary)" />
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'white' }}>
                       {userLocationText}
                     </span>
