@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import './index.css';
@@ -2273,7 +2273,7 @@ export default function App() {
             }
             setViewMode('random');
           }}>
-            <Shuffle size={20} />
+            <PhoneCall size={20} className="calling-icon-anim" />
             Nearby Users
           </div>
           <div className={`nav-item-desktop ${viewMode === 'private' ? 'active' : ''}`} onClick={() => {
@@ -3124,7 +3124,7 @@ export default function App() {
               }
               setViewMode('random');
             }}>
-              <Shuffle size={24} />
+              <PhoneCall size={24} className="calling-icon-anim" />
               Nearby Users
             </div>
             {!isApp && (

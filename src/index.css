@@ -1937,3 +1937,18 @@ body {
     box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
   }
 }
+
+.calling-icon-anim {
+  animation: callingIconRing 2.5s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes callingIconRing {
+  0% { transform: scale(1) rotate(0deg); }
+  10% { transform: scale(1.18) rotate(-14deg); }
+  20% { transform: scale(1.18) rotate(14deg); }
+  30% { transform: scale(1.18) rotate(-14deg); }
+  40% { transform: scale(1.18) rotate(14deg); }
+  50% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
