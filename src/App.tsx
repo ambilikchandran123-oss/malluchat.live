@@ -2273,7 +2273,7 @@ export default function App() {
             }
             setViewMode('random');
           }}>
-            <PhoneCall size={20} className="calling-icon-anim" />
+            <PhoneCall size={20} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
             Nearby Users
           </div>
           <div className={`nav-item-desktop ${viewMode === 'private' ? 'active' : ''}`} onClick={() => {
@@ -3124,7 +3124,7 @@ export default function App() {
               }
               setViewMode('random');
             }}>
-              <PhoneCall size={24} className="calling-icon-anim" />
+              <PhoneCall size={24} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
               Nearby Users
             </div>
             {!isApp && (
