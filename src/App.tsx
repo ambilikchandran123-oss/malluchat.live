@@ -1519,18 +1519,22 @@ export default function App() {
         return;
       }
 
-      // Sniff supported MIME type (Safari iOS compatibility)
+      // Sniff supported MIME type (Cross-browser / iOS Safari / Android compatibility)
       let mimeType = 'audio/webm';
       let extension = 'webm';
-      if (MediaRecorder.isTypeSupported('audio/mp4')) {
+
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+        extension = 'webm';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+        extension = 'webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
         mimeType = 'audio/mp4';
         extension = 'mp4';
       } else if (MediaRecorder.isTypeSupported('audio/aac')) {
         mimeType = 'audio/aac';
         extension = 'aac';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-        mimeType = 'audio/ogg';
-        extension = 'ogg';
       } else if (MediaRecorder.isTypeSupported('audio/wav')) {
         mimeType = 'audio/wav';
         extension = 'wav';
@@ -1576,28 +1580,6 @@ export default function App() {
           } as any;
 
           if (viewModeRef.current === 'public') {
-            const uploadTopic = `mc_voice_${uuidv4().substring(0, 8)}`;
-            fetch(`https://ntfy.sh/${uploadTopic}`, {
-              method: 'PUT',
-              headers: {
-                'X-Filename': `voice.${extension}`
-              },
-              body: audioBlob
-            })
-              .then(res => {
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                return res.json();
-              })
-              .then(data => {
-                if (!data?.attachment?.url) throw new Error("No attachment URL returned");
-                const directUrl = data.attachment.url;
-                sendPublicVoiceMsg(directUrl);
-              })
-              .catch(err => {
-                console.error("ntfy.sh voice upload failed:", err);
-                alert("Failed to upload voice message. Please check connection.");
-              });
-
             const sendPublicVoiceMsg = (directUrl: string) => {
               const publicMsg = { ...msg, voiceBlob: directUrl };
               setPublicMessages(prev => {
@@ -1612,6 +1594,47 @@ export default function App() {
               }).catch(() => { });
               sentSound.play().catch(() => { });
             };
+
+            // Upload voice blob to tmpfiles.org with fallback to catbox.moe
+            const formData = new FormData();
+            formData.append('file', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
+
+            fetch('https://tmpfiles.org/api/v1/upload', {
+              method: 'POST',
+              body: formData
+            })
+              .then(res => res.json())
+              .then(data => {
+                if (data?.status === 'success' && data?.data?.url) {
+                  const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                  sendPublicVoiceMsg(directUrl);
+                } else {
+                  throw new Error("tmpfiles upload failed");
+                }
+              })
+              .catch(err => {
+                console.warn("tmpfiles voice upload failed, trying fallback:", err);
+                const catboxData = new FormData();
+                catboxData.append('reqtype', 'fileupload');
+                catboxData.append('fileToUpload', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
+
+                fetch('https://catbox.moe/user/api.php', {
+                  method: 'POST',
+                  body: catboxData
+                })
+                  .then(res => res.text())
+                  .then(url => {
+                    if (url && url.trim().startsWith('http')) {
+                      sendPublicVoiceMsg(url.trim());
+                    } else {
+                      alert("Failed to upload voice message. Please check connection.");
+                    }
+                  })
+                  .catch(cErr => {
+                    console.error("Voice message upload completely failed:", cErr);
+                    alert("Failed to upload voice message. Please check connection.");
+                  });
+              });
           } else {
             peerEngine.sendMessage(msg);
             setMessages(prev => {
@@ -1658,16 +1681,34 @@ export default function App() {
       const audio = audioRef.current;
       if (!audio) return;
 
+      setIsPlaying(false);
+      setProgress(0);
+      setCurrentTime(0);
+      setDuration(0);
+
       const updateProgress = () => {
         setCurrentTime(audio.currentTime);
-        if (audio.duration) {
-          setProgress((audio.currentTime / audio.duration) * 100);
+        const dur = audio.duration;
+        if (dur && isFinite(dur) && dur > 0) {
+          setDuration(dur);
+          setProgress((audio.currentTime / dur) * 100);
         }
       };
 
       const handleLoadedMetadata = () => {
-        if (audio.duration) {
+        if (audio.duration && isFinite(audio.duration)) {
           setDuration(audio.duration);
+        } else {
+          // WebM duration workaround for MediaRecorder recordings
+          audio.currentTime = 1e101;
+          const tempTimeUpdate = () => {
+            audio.ontimeupdate = null;
+            audio.currentTime = 0;
+            if (audio.duration && isFinite(audio.duration)) {
+              setDuration(audio.duration);
+            }
+          };
+          audio.ontimeupdate = tempTimeUpdate;
         }
       };
 
@@ -1681,8 +1722,8 @@ export default function App() {
       audio.addEventListener('loadedmetadata', handleLoadedMetadata);
       audio.addEventListener('ended', handleEnded);
 
-      if (audio.readyState >= 1 && audio.duration) {
-        setDuration(audio.duration);
+      if (audio.readyState >= 1) {
+        handleLoadedMetadata();
       }
 
       return () => {
@@ -1693,25 +1734,52 @@ export default function App() {
     }, [src]);
 
     const togglePlay = () => {
-      if (!audioRef.current) return;
+      const audio = audioRef.current;
+      if (!audio) return;
+
       if (isPlaying) {
-        audioRef.current.pause();
+        audio.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play().catch(err => console.error("Audio playback error:", err));
+        const promise = audio.play();
+        if (promise !== undefined) {
+          promise
+            .then(() => setIsPlaying(true))
+            .catch(err => {
+              console.error("Audio playback error:", err);
+              setIsPlaying(false);
+            });
+        }
       }
-      setIsPlaying(!isPlaying);
+    };
+
+    const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+      const dur = duration || (isFinite(audio.duration) ? audio.duration : 0);
+      if (dur > 0) {
+        const newTime = (clickX / width) * dur;
+        audio.currentTime = newTime;
+        setCurrentTime(newTime);
+        setProgress((newTime / dur) * 100);
+      }
     };
 
     const formatTime = (time: number) => {
-      if (isNaN(time) || !isFinite(time)) return '0:00';
+      if (isNaN(time) || !isFinite(time) || time < 0) return '0:00';
       const mins = Math.floor(time / 60);
       const secs = Math.floor(time % 60);
       return `${mins}:${secs.toString().padStart(2, '0')}`;
     };
 
+    const displayTime = isPlaying || currentTime > 0 ? currentTime : (duration || currentTime);
+
     return (
-      <div className="audio-player-wrapper" style={{ background: isMine ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)', padding: '8px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
-        <audio ref={audioRef} src={src} className="hidden-audio" preload="metadata" />
+      <div className="audio-player-wrapper" style={{ background: isMine ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.08)', padding: '8px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
+        <audio ref={audioRef} src={src} className="hidden-audio" preload="auto" crossOrigin="anonymous" />
         <button className="play-btn" onClick={togglePlay} style={{ background: isMine ? 'var(--primary)' : 'var(--text-main)', color: '#000', width: '36px', height: '36px', minWidth: '36px', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           {isPlaying ? (
             <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '1px' }}></div>
@@ -1719,11 +1787,11 @@ export default function App() {
             <div style={{ width: '0', height: '0', borderStyle: 'solid', borderWidth: '6px 0 6px 10px', borderColor: 'transparent transparent transparent #000', marginLeft: '2px' }}></div>
           )}
         </button>
-        <div className="audio-progress" style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', position: 'relative', overflow: 'hidden' }}>
-          <div className="audio-progress-bar" style={{ width: `${progress}%`, height: '100%', background: isMine ? 'var(--primary)' : 'var(--text-main)', transition: 'width 0.1s linear' }}></div>
+        <div className="audio-progress" onClick={handleSeek} style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.15)', borderRadius: '3px', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}>
+          <div className="audio-progress-bar" style={{ width: `${Math.min(100, Math.max(0, progress))}%`, height: '100%', background: isMine ? 'var(--primary)' : 'var(--text-main)', transition: isPlaying ? 'width 0.1s linear' : 'none' }}></div>
         </div>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '35px', textAlign: 'right', fontFamily: 'monospace' }}>
-          {formatTime(isPlaying ? currentTime : (duration || currentTime))}
+          {formatTime(displayTime)}
         </span>
       </div>
     );
