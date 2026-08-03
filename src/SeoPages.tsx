@@ -231,3 +231,46 @@ export const MalayalamChatOnlinePage = () => {
     );
 };
 
+// 5. Mallu Free Video Call Page
+export const MalluFreeVideoCallPage = () => {
+    useMeta(
+        'Mallu Free Video Call - Live Malayalam Random Video Chat & Calling | MalluChat',
+        'Enjoy 100% Mallu free video call & live Malayalam video chat online without registration. Connect instantly with random Malayalees worldwide for free video calling.',
+        '/mallu-free-video-call'
+    );
+
+    return (
+        <div style={containerStyle} className="glass">
+            <Header title="Mallu Free Video Call" />
+            <CallToAction />
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                Looking for a 100% <strong>mallu free video call</strong> service to talk face-to-face with fellow Malayalees? MalluChat offers high-speed, peer-to-peer <strong>free video call mallu</strong> features with HD video and crystal-clear audio—no registration, app download, or credit card required.
+            </p>
+
+            <Section title="Why Choose MalluChat for Mallu Free Video Calls?">
+                <p>Unlike traditional dating or chatting platforms that charge coins or require monthly subscriptions, MalluChat provides completely free, unlimited video calling powered by WebRTC technology:</p>
+                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li><strong>100% Free Video Calling:</strong> Enjoy unlimited HD video chat with zero hidden fees or coin paywalls.</li>
+                    <li><strong>No Registration Required:</strong> Start a mallu free video chat in seconds without sharing your email or phone number.</li>
+                    <li><strong>Direct P2P Encrypted Stream:</strong> Peer-to-peer WebRTC connection ensures your video calls remain strictly private.</li>
+                    <li><strong>Cross-Platform Compatibility:</strong> Access free Mallu video calls on Android mobile web, iOS Safari, desktop Chrome, or via our Android APK.</li>
+                </ul>
+            </Section>
+
+            <Section title="How to Start a Mallu Free Video Call Online">
+                <p>Connecting on MalluChat for a free video call takes less than 10 seconds:</p>
+                <ol style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li>Click the <strong>Start Chatting Now</strong> button above to open the live platform.</li>
+                    <li>Enter any custom anonymous nickname to enter the room.</li>
+                    <li>Initiate an instant peer-to-peer <strong>mallu free video call</strong> or random call directly with your online friend.</li>
+                </ol>
+            </Section>
+
+            <Section title="Safe & Respectful Kerala Video Chat Platform">
+                <p>MalluChat is dedicated to creating a fun, safe, and respectful space for Malayalees in Kerala and the global diaspora. Moderate your experience, enjoy anonymous conversations, and connect with people who share your language and culture.</p>
+            </Section>
+        </div>
+    );
+};
+
+

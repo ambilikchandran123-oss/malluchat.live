@@ -11,6 +11,7 @@ const routes = [
   'terms',
   'aup',
   'disclaimer',
+  'mallu-free-video-call',
   'mallu-chatting-app',
   'mallu-telegram-chatting',
   'telegram-alternative-group-chat',
