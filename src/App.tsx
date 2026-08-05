@@ -7,7 +7,7 @@ import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
-import { uploadOrCompressImage } from './utils/image-uploader';
+import { processImageAttachment } from './utils/image-uploader';
 import './index.css';
 
 // Mock UI sounds
@@ -1918,7 +1918,7 @@ export default function App() {
     setReplyingTo(null);
   };
 
-  const handleSendImage = (imageUrl: string, title?: string) => {
+  const handleSendImage = (imageUrl: string, title?: string, thumbUrl?: string) => {
     if (!username && viewMode === 'public') {
       setShowLoginModal(true);
       return;
@@ -1930,7 +1930,8 @@ export default function App() {
       senderId: myId,
       senderName: username,
       type: 'image',
-      imageUrl,
+      imageUrl: imageUrl || thumbUrl,
+      thumbUrl: thumbUrl || imageUrl,
       text: title || 'Image',
       timestamp: Date.now(),
       replyToId: replyingTo?.id,
@@ -1975,8 +1976,8 @@ export default function App() {
 
     setIsUploadingImage(true);
     try {
-      const imageUrl = await uploadOrCompressImage(file);
-      handleSendImage(imageUrl, file.name);
+      const res = await processImageAttachment(file);
+      handleSendImage(res.imageUrl, file.name, res.thumbUrl);
     } catch (err) {
       alert("Failed to process image attachment. Please try again.");
     } finally {
@@ -3101,14 +3102,13 @@ export default function App() {
                       {msg.type === 'image' && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
                           <img
-                            src={msg.imageUrl}
+                            src={msg.imageUrl || msg.thumbUrl}
                             alt={msg.text || 'Photo'}
-                            onClick={() => setEnlargedGifUrl(msg.imageUrl || null)}
+                            onClick={() => setEnlargedGifUrl(msg.imageUrl || msg.thumbUrl || null)}
                             onError={(e) => {
                               const target = e.currentTarget;
-                              if (!target.dataset.failed) {
-                                target.dataset.failed = 'true';
-                                target.src = 'https://iili.io/CgEX66x.gif';
+                              if (msg.thumbUrl && target.src !== msg.thumbUrl) {
+                                target.src = msg.thumbUrl;
                               }
                             }}
                             style={{

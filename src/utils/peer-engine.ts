@@ -12,6 +12,7 @@ export type IncomingMessage = {
     adImageUrl?: string; // image for ads
     gifUrl?: string; // animated gif URL
     imageUrl?: string; // photo/image attachment URL
+    thumbUrl?: string; // permanent embedded thumbnail URL
     reaction?: string;
     targetId?: string; // for reactions/read receipts
     replyToId?: string; // ID of the message being replied to
