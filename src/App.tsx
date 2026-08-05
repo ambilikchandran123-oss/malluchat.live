@@ -1915,7 +1915,6 @@ export default function App() {
       setShowLoginModal(true);
       return;
     }
-    if (isSpam(gifUrl)) return alert("Spam blocked.");
     if (!rateLimiter.current.checkLimit()) return alert("Slow down.");
 
     const msg = {
