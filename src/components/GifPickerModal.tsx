@@ -7,51 +7,58 @@ interface GifPickerModalProps {
   onSelectGif: (gifUrl: string, title?: string) => void;
 }
 
-// Expanded high quality curated Malayalam & Indian reaction GIFs
+// Authentic Verified Malayalam Movie & Character GIFs
 const CURATED_GIFS: Record<string, { id: string; url: string; title: string; tags?: string[] }[]> = {
   malayalam: [
-    { id: 'm1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnJqNXgxejhkcGZyb2IxeGszcG9uMWhucG9qYzdsenVnbDgybGNuZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JIX9t2j0ZTN9S/giphy.gif', title: 'Malayalam Funny Reaction', tags: ['malayalam', 'salimkumar', 'funny'] },
-    { id: 'm2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWtsNXQydTVucDhhZndlYndlZm8xdmp3OXc2eXdmMDlsbHRjNHh2bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpwhIYvwlR63vIM/giphy.gif', title: 'Dashamoolam Dhamu Laugh', tags: ['malayalam', 'dhamu', 'salimkumar'] },
-    { id: 'm3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucTNhdzBocnhnY2U1Y3U2anI2dzFhYjVmdzM1eTRqZGtmbWdmdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiVyM/giphy.gif', title: 'Super Stare Reaction', tags: ['malayalam', 'mohanlal', 'mass'] },
-    { id: 'm4', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNndic290MGttZmxkYXV4YnlndmJhZXlnZjQxMWpsaHgzdzBhMW1xZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2K5jinAlChoCLS/giphy.gif', title: 'Jagathy Clapping', tags: ['malayalam', 'jagathy', 'clap'] },
-    { id: 'm5', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbnZuejdxNzcybm05aHM3dnoxZzV2MnB5ZTZsaHNjNDVybGNtOW1ndCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0HlHFRbmaZtBRhXG/giphy.gif', title: 'Kerala Onam Dance', tags: ['malayalam', 'dance', 'onam'] },
-    { id: 'm6', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3dldmZiaXdvZHF6NXRrejlvcWd6ZmZyeTBsZzh4bTkyOGpsZDFscCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u4cqiYI30juCOGY/giphy.gif', title: 'Mammootty Thumbs Up', tags: ['malayalam', 'mammootty', 'like'] },
-    { id: 'm7', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2RtcGl5NDVnbTFqNjMwbnhvZjdubmE5Z3lyZXVlcmg0bWlhZnpxZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/S9f7FVSU0TUzLKCx7A/giphy.gif', title: 'Suraj Shocked Face', tags: ['malayalam', 'suraj', 'shocked'] },
-    { id: 'm8', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZndjN3dvaXZmbGkycDRpbmZqdTlyd3N3dGhyMXd1Y2JydjFrcG5ycCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5t9wJjyHAOxvnxcPNk/giphy.gif', title: 'Innocent Scratch Head', tags: ['malayalam', 'innocent', 'confused'] }
+    { id: 'm1', url: 'https://media.giphy.com/media/SPxbUDEqoJMFfzIo4o/giphy.gif', title: 'Manavalan Glasses (Salim Kumar)', tags: ['salimkumar', 'manavalan', 'malayalam', 'funny'] },
+    { id: 'm2', url: 'https://media.giphy.com/media/Air56nKsn1iAoPm5RZ/giphy.gif', title: 'Mohanlal Salute Mass', tags: ['mohanlal', 'lalettan', 'mass', 'malayalam'] },
+    { id: 'm3', url: 'https://media.giphy.com/media/asMVvV4fOXFcfm6OuM/giphy.gif', title: 'Mammootty "Is That So?"', tags: ['mammootty', 'mammookka', 'malayalam', 'reaction'] },
+    { id: 'm4', url: 'https://media.giphy.com/media/bpyQShzuDh5lLC70wN/giphy.gif', title: 'Premam Malar Teacher Smile', tags: ['premam', 'saipallavi', 'love', 'malayalam'] },
+    { id: 'm5', url: 'https://media.giphy.com/media/3oxRmoWRSnxmiJmBaw/giphy.gif', title: 'Salim Kumar Pulival Kalyanam', tags: ['salimkumar', 'comedy', 'malayalam'] },
+    { id: 'm6', url: 'https://media.giphy.com/media/btdKdBz6Pw4Ks/giphy.gif', title: 'Marykkundoru Kunjaadu Comedy', tags: ['dileep', 'salimkumar', 'malayalam'] },
+    { id: 'm7', url: 'https://media.giphy.com/media/aVMiF9Tc57zkXfZ7IK/giphy.gif', title: 'Nivin Pauly Premam Swag', tags: ['nivinpauly', 'premam', 'mass', 'malayalam'] },
+    { id: 'm8', url: 'https://media.giphy.com/media/duTokUNkqqQAiHnOeM/giphy.gif', title: 'Mammootty Mammookka Reaction', tags: ['mammootty', 'mammookka', 'malayalam'] },
+    { id: 'm9', url: 'https://media.giphy.com/media/ebcTSCa5r2VHFK1zPS/giphy.gif', title: 'Mammootty Bheeshma Parvam', tags: ['mammootty', 'bheeshmaparvam', 'mass'] },
+    { id: 'm10', url: 'https://media.giphy.com/media/AmyldVlxkmut0XyRqB/giphy.gif', title: 'Mohanlal Smile', tags: ['mohanlal', 'lalettan', 'smile'] }
   ],
   mohanlal: [
-    { id: 'lal1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucTNhdzBocnhnY2U1Y3U2anI2dzFhYjVmdzM1eTRqZGtmbWdmdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiVyM/giphy.gif', title: 'Mohanlal Eyebrow Twitch / Swag', tags: ['mohanlal', 'lalettan', 'swag'] },
-    { id: 'lal2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3dldmZiaXdvZHF6NXRrejlvcWd6ZmZyeTBsZzh4bTkyOGpsZDFscCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u4cqiYI30juCOGY/giphy.gif', title: 'Lalettan Smile', tags: ['mohanlal', 'lalettan', 'smile'] },
-    { id: 'lal3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnJqNXgxejhkcGZyb2IxeGszcG9uMWhucG9qYzdsenVnbDgybGNuZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JIX9t2j0ZTN9S/giphy.gif', title: 'Spadikam Aadu Thoma Mass', tags: ['mohanlal', 'mass', 'spadikam'] },
-    { id: 'lal4', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWtsNXQydTVucDhhZndlYndlZm8xdmp3OXc2eXdmMDlsbHRjNHh2bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpwhIYvwlR63vIM/giphy.gif', title: 'Lucifer Entry', tags: ['mohanlal', 'lucifer', 'mass'] }
+    { id: 'lal1', url: 'https://media.giphy.com/media/Air56nKsn1iAoPm5RZ/giphy.gif', title: 'Mohanlal Salute Mass', tags: ['mohanlal', 'salute', 'mass'] },
+    { id: 'lal2', url: 'https://media.giphy.com/media/AmyldVlxkmut0XyRqB/giphy.gif', title: 'Mohanlal Charm Smile', tags: ['mohanlal', 'smile', 'lalettan'] },
+    { id: 'lal3', url: 'https://media.giphy.com/media/mbcD95pcHZbL1wdIZz/giphy.gif', title: 'Mohanlal Dance Move', tags: ['mohanlal', 'dance'] },
+    { id: 'lal4', url: 'https://media.giphy.com/media/mzZlll5ARLZDGCtRoO/giphy.gif', title: 'Mohanlal Crying Meme', tags: ['mohanlal', 'cry', 'funny'] },
+    { id: 'lal5', url: 'https://media.giphy.com/media/5eFQJhNd7woE0a6pM3/giphy.gif', title: 'Lalettan Movie Swag', tags: ['mohanlal', 'lalettan'] },
+    { id: 'lal6', url: 'https://media.giphy.com/media/FFKlScm1ivGq4JfbWt/giphy.gif', title: 'Harikrishnans Mohanlal & Mammootty', tags: ['mohanlal', 'mammootty'] }
   ],
   mammootty: [
-    { id: 'mam1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3dldmZiaXdvZHF6NXRrejlvcWd6ZmZyeTBsZzh4bTkyOGpsZDFscCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u4cqiYI30juCOGY/giphy.gif', title: 'Mammootty Bheeshma Parvam Walk', tags: ['mammootty', 'mammookka', 'mass'] },
-    { id: 'mam2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNndic290MGttZmxkYXV4YnlndmJhZXlnZjQxMWpsaHgzdzBhMW1xZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2K5jinAlChoCLS/giphy.gif', title: 'Big B Dialogue Swag', tags: ['mammootty', 'bigb', 'swag'] },
-    { id: 'mam3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucTNhdzBocnhnY2U1Y3U2anI2dzFhYjVmdzM1eTRqZGtmbWdmdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiVyM/giphy.gif', title: 'Sethurama Iyer Thinking', tags: ['mammootty', 'cbi', 'smart'] }
+    { id: 'mam1', url: 'https://media.giphy.com/media/asMVvV4fOXFcfm6OuM/giphy.gif', title: 'Mammootty "Is That So?" Reaction', tags: ['mammootty', 'mammookka'] },
+    { id: 'mam2', url: 'https://media.giphy.com/media/duTokUNkqqQAiHnOeM/giphy.gif', title: 'Mammootty Mammookka Smile', tags: ['mammootty', 'smile'] },
+    { id: 'mam3', url: 'https://media.giphy.com/media/LIpi6bKcFVKfZb5Hxe/giphy.gif', title: 'Mammootty Kasaba Mass', tags: ['mammootty', 'kasaba', 'mass'] },
+    { id: 'mam4', url: 'https://media.giphy.com/media/ebcTSCa5r2VHFK1zPS/giphy.gif', title: 'Mammootty Bheeshma Parvam Walk', tags: ['mammootty', 'bheeshmaparvam'] },
+    { id: 'mam5', url: 'https://media.giphy.com/media/dHD3QObxk9Hk6mRsDe/giphy.gif', title: 'Mammootty Kasaba Sunglasses', tags: ['mammootty', 'glasses'] },
+    { id: 'mam6', url: 'https://media.giphy.com/media/Y6CIo9NccFMzdZlKBo/giphy.gif', title: 'Mammootty Special Expression', tags: ['mammootty', 'special'] }
   ],
   salimkumar: [
-    { id: 'sk1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYnJqNXgxejhkcGZyb2IxeGszcG9uMWhucG9qYzdsenVnbDgybGNuZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JIX9t2j0ZTN9S/giphy.gif', title: 'Manavalan Crying Laughing', tags: ['salimkumar', 'manavalan', 'funny'] },
-    { id: 'sk2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWtsNXQydTVucDhhZndlYndlZm8xdmp3OXc2eXdmMDlsbHRjNHh2bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpwhIYvwlR63vIM/giphy.gif', title: 'Dashamoolam Dhamu Eyebrows', tags: ['salimkumar', 'dhamu', 'meme'] },
-    { id: 'sk3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeGJ3cmZ4ZXB6NThuaG5xM2tmeXdwczl4OGV3NmNmbmdsbXdpYXc2MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/ndFA19YRB0GKY/giphy.gif', title: 'Pyari Shocked Face', tags: ['salimkumar', 'pyari', 'shocked'] }
-  ],
-  jagathy: [
-    { id: 'j1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNndic290MGttZmxkYXV4YnlndmJhZXlnZjQxMWpsaHgzdzBhMW1xZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2K5jinAlChoCLS/giphy.gif', title: 'Jagathy Nischal Laugh', tags: ['jagathy', 'kilukkam', 'funny'] },
-    { id: 'j2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZndjN3dvaXZmbGkycDRpbmZqdTlyd3N3dGhyMXd1Y2JydjFrcG5ycCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5t9wJjyHAOxvnxcPNk/giphy.gif', title: 'Innocent Mannar Mathai', tags: ['innocent', 'mannar', 'funny'] },
-    { id: 'j3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExd2RtcGl5NDVnbTFqNjMwbnhvZjdubmE5Z3lyZXVlcmg0bWlhZnpxZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/S9f7FVSU0TUzLKCx7A/giphy.gif', title: 'Suraj Dashavatharam', tags: ['suraj', 'funny', 'reaction'] }
+    { id: 'sk1', url: 'https://media.giphy.com/media/SPxbUDEqoJMFfzIo4o/giphy.gif', title: 'Manavalan Glasses (Pulival Kalyanam)', tags: ['salimkumar', 'manavalan'] },
+    { id: 'sk2', url: 'https://media.giphy.com/media/3oxRmoWRSnxmiJmBaw/giphy.gif', title: 'Salim Kumar Classic Reaction', tags: ['salimkumar', 'reaction'] },
+    { id: 'sk3', url: 'https://media.giphy.com/media/MoDHlX4whLqqQ/giphy.gif', title: 'Salim Kumar Comedy Laugh', tags: ['salimkumar', 'laugh'] },
+    { id: 'sk4', url: 'https://media.giphy.com/media/W76Qa07KYacj1OxCaW/giphy.gif', title: 'Salim Kumar Crying Reaction', tags: ['salimkumar', 'cry'] },
+    { id: 'sk5', url: 'https://media.giphy.com/media/KkLQGyM9vCRuOImxkc/giphy.gif', title: 'Salim Kumar & Dileep Scene', tags: ['salimkumar', 'dileep'] }
   ],
   mallulove: [
-    { id: 'ml1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcHJkdmRmbjhvb2g5OWJpajdxMnEydWpxczJqdnpxdTFpZWlnYmd4YSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26FLdmIp6wJr91JAI/giphy.gif', title: 'Premam Malar & Giri Smile', tags: ['premam', 'love', 'romantic'] },
-    { id: 'ml2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbnE0MnY5OGcwa3Jvb3FwazltNHhhNjlzMHg4ZTNjNmpndnFiMWFwcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/M90mJvfWfd5mbUv03d/giphy.gif', title: 'Hridayam Romantic Glance', tags: ['hridayam', 'love', 'hug'] },
-    { id: 'ml3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbnFlMnIwdWd6aDFwb3cxbTNjcHBvdG9mNDRra3J2OXkwczYyMGF1MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/gD4E1t4pU3wG9D8j9b/giphy.gif', title: 'Mallu Couple Kiss', tags: ['kerala', 'kiss', 'love'] }
+    { id: 'ml1', url: 'https://media.giphy.com/media/bpyQShzuDh5lLC70wN/giphy.gif', title: 'Premam Sai Pallavi Malar Smile', tags: ['premam', 'saipallavi', 'love'] },
+    { id: 'ml2', url: 'https://media.giphy.com/media/aVMiF9Tc57zkXfZ7IK/giphy.gif', title: 'Premam Nivin Pauly Mass Swag', tags: ['premam', 'nivinpauly'] },
+    { id: 'ml3', url: 'https://media.giphy.com/media/AYpTVR2cfJsbZQtgOq/giphy.gif', title: 'Premam College Entry', tags: ['premam', 'college'] },
+    { id: 'ml4', url: 'https://media.giphy.com/media/FtwFZ1HIwivnjA48ez/giphy.gif', title: 'Sai Pallavi Cute Blushing', tags: ['saipallavi', 'cute'] },
+    { id: 'ml5', url: 'https://media.giphy.com/media/2bc8oSPHnc0aA/giphy.gif', title: 'Premam Classic Romantic Scene', tags: ['premam', 'romance'] },
+    { id: 'ml6', url: 'https://media.giphy.com/media/9ALlOPjnRzJzl6E6Yz/giphy.gif', title: 'Pranav Mohanlal Hridayam', tags: ['pranav', 'hridayam'] }
   ],
   trending: [
-    { id: 't1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbnZuejdxNzcybm05aHM3dnoxZzV2MnB5ZTZsaHNjNDVybGNtOW1ndCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0HlHFRbmaZtBRhXG/giphy.gif', title: 'Happy Dance' },
-    { id: 't2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpucTNhdzBocnhnY2U1Y3U2anI2dzFhYjVmdzM1eTRqZGtmbWdmdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjeiVyM/giphy.gif', title: 'Mind Blown' },
-    { id: 't3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNndic290MGttZmxkYXV4YnlndmJhZXlnZjQxMWpsaHgzdzBhMW1xZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2K5jinAlChoCLS/giphy.gif', title: 'Applause' },
-    { id: 't4', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWtsNXQydTVucDhhZndlYndlZm8xdmp3OXc2eXdmMDlsbHRjNHh2bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/c6DIpwhIYvwlR63vIM/giphy.gif', title: 'Popcorn' },
-    { id: 't5', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3dldmZiaXdvZHF6NXRrejlvcWd6ZmZyeTBsZzh4bTkyOGpsZDFscCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26u4cqiYI30juCOGY/giphy.gif', title: 'Thumbs Up' },
-    { id: 't6', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbDVqMjB4dGhhNGlsOGxndWZrdGV6dngwcnpwcHFxY2QybWw2cXdtNSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/10UeedrT5MIfPG/giphy.gif', title: 'Party Cat' }
+    { id: 'tr1', url: 'https://media.giphy.com/media/Air56nKsn1iAoPm5RZ/giphy.gif', title: 'Mohanlal Salute Mass' },
+    { id: 'tr2', url: 'https://media.giphy.com/media/SPxbUDEqoJMFfzIo4o/giphy.gif', title: 'Salim Kumar Manavalan' },
+    { id: 'tr3', url: 'https://media.giphy.com/media/asMVvV4fOXFcfm6OuM/giphy.gif', title: 'Mammootty Reaction' },
+    { id: 'tr4', url: 'https://media.giphy.com/media/bpyQShzuDh5lLC70wN/giphy.gif', title: 'Premam Sai Pallavi Smile' },
+    { id: 'tr5', url: 'https://media.giphy.com/media/ebcTSCa5r2VHFK1zPS/giphy.gif', title: 'Mammootty Bheeshma Parvam' },
+    { id: 'tr6', url: 'https://media.giphy.com/media/aVMiF9Tc57zkXfZ7IK/giphy.gif', title: 'Nivin Pauly Swag' }
   ]
 };
 
@@ -60,8 +67,7 @@ const CATEGORIES = [
   { id: 'mohanlal', label: '👑 Mohanlal' },
   { id: 'mammootty', label: '🔥 Mammootty' },
   { id: 'salimkumar', label: '😂 Salim Kumar' },
-  { id: 'jagathy', label: '🤣 Jagathy & Innocent' },
-  { id: 'mallulove', label: '😍 Mallu Love' },
+  { id: 'mallulove', label: '😍 Premam & Love' },
   { id: 'trending', label: '🔥 Trending' }
 ];
 
@@ -76,8 +82,8 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
   const [customUrl, setCustomUrl] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
 
-  // Search logic: combines local Malayalam tags search and online Giphy search
-  const performSearch = useCallback(async (query: string) => {
+  // Search logic: matches local Malayalam tags and title
+  const performSearch = useCallback((query: string) => {
     const q = query.toLowerCase().trim();
     if (!q) {
       setGifs(CURATED_GIFS[selectedCategory] || CURATED_GIFS.malayalam);
@@ -86,7 +92,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
 
     setLoading(true);
 
-    // 1. Filter local curated list matching search query
+    // Filter local curated list matching search query
     const allLocalGifs = Object.values(CURATED_GIFS).flat();
     const matchedLocal = allLocalGifs.filter(gif =>
       gif.title.toLowerCase().includes(q) ||
@@ -97,35 +103,13 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
     const localMap = new Map<string, { id: string; url: string; title: string }>();
     matchedLocal.forEach(item => localMap.set(item.id, item));
 
-    try {
-      // 2. Fetch Giphy search results as supplementary
-      const apiKey = 'GlV1VU2yTFawAOh5UMIpXPICBsng6qZl';
-      const response = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(q)}&limit=24`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
-          const onlineGifs = data.data.map((item: any) => ({
-            id: item.id,
-            url: item.images?.fixed_height?.url || item.images?.original?.url,
-            title: item.title || query
-          }));
-
-          // Put matched local Malayalam GIFs first, followed by online GIFs
-          const combined = [...Array.from(localMap.values()), ...onlineGifs];
-          setGifs(combined);
-        } else {
-          setGifs(Array.from(localMap.values()).length > 0 ? Array.from(localMap.values()) : (CURATED_GIFS[selectedCategory] || CURATED_GIFS.malayalam));
-        }
-      } else {
-        setGifs(Array.from(localMap.values()).length > 0 ? Array.from(localMap.values()) : (CURATED_GIFS[selectedCategory] || CURATED_GIFS.malayalam));
-      }
-    } catch (err) {
-      setGifs(Array.from(localMap.values()).length > 0 ? Array.from(localMap.values()) : (CURATED_GIFS[selectedCategory] || CURATED_GIFS.malayalam));
-    } finally {
-      setLoading(false);
+    const results = Array.from(localMap.values());
+    if (results.length > 0) {
+      setGifs(results);
+    } else {
+      setGifs(CURATED_GIFS[selectedCategory] || CURATED_GIFS.malayalam);
     }
+    setLoading(false);
   }, [selectedCategory]);
 
   // Handle Search Input Change with Debounce
@@ -137,7 +121,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
 
     const timer = setTimeout(() => {
       performSearch(searchQuery);
-    }, 350);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [searchQuery, selectedCategory, performSearch]);
@@ -235,7 +219,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              Send Mallu & Popular GIFs
+              Send Mallu & Malayalam GIFs
             </h3>
           </div>
 
@@ -274,7 +258,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
             }}
             onClick={() => setActiveTab('search')}
           >
-            <Search size={16} /> GIF Collection & Search
+            <Search size={16} /> Malayalam GIF Collection
           </button>
 
           <button
@@ -317,7 +301,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
                 <Search size={18} style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Search Malayalam GIFs (Mohanlal, Mammootty, Dhamu)..."
+                  placeholder="Search (e.g. Mohanlal, Mammootty, Salim Kumar, Premam)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -433,9 +417,10 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
                         bottom: 0,
                         zIndex: 1,
                         width: '100%',
-                        background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
-                        padding: '4px 6px',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.85), transparent)',
+                        padding: '6px 6px 4px 6px',
                         fontSize: '0.7rem',
+                        fontWeight: 600,
                         color: '#fff',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
