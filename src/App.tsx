@@ -3,9 +3,10 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
+import { GifPickerModal } from './components/GifPickerModal';
 import './index.css';
 
 // Mock UI sounds
@@ -367,6 +368,10 @@ export default function App() {
     return [];
   });
   const [publicInput, setPublicInput] = useState<string>('');
+
+  // GIF picker states
+  const [showGifPicker, setShowGifPicker] = useState<boolean>(false);
+  const [enlargedGifUrl, setEnlargedGifUrl] = useState<string | null>(null);
 
   // Reply State
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -1311,7 +1316,7 @@ export default function App() {
       receivedSound.play().catch(() => { });
 
       // Send back read receipt automatically
-      if (msg.type === 'text' || msg.type === 'voice') {
+      if (msg.type === 'text' || msg.type === 'voice' || msg.type === 'gif') {
         peerEngine.sendMessage({
           id: uuidv4(),
           senderId: peerEngine.id,
@@ -1903,6 +1908,53 @@ export default function App() {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+  };
+
+  const handleSendGif = (gifUrl: string, title?: string) => {
+    if (!username && viewMode === 'public') {
+      setShowLoginModal(true);
+      return;
+    }
+    if (isSpam(gifUrl)) return alert("Spam blocked.");
+    if (!rateLimiter.current.checkLimit()) return alert("Slow down.");
+
+    const msg = {
+      id: uuidv4(),
+      senderId: myId,
+      senderName: username,
+      type: 'gif',
+      gifUrl,
+      text: title || 'GIF',
+      timestamp: Date.now(),
+      replyToId: replyingTo?.id,
+      replyText: replyingTo?.text || "GIF"
+    };
+
+    if (viewMode === 'public') {
+      setPublicMessages(prev => {
+        const updated = [...prev, msg];
+        localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+        return updated;
+      });
+      fetch(POST_URL, {
+        method: 'POST',
+        body: JSON.stringify(msg)
+      }).catch(() => { });
+    } else {
+      peerEngine.sendMessage(msg as any);
+      setMessages(prev => {
+        const updated = [...prev, msg];
+        const remotePeerId = peerEngine.connection?.peer;
+        if (remotePeerId) {
+          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
+      sentSound.play().catch(() => { });
+    }
+
+    setReplyingTo(null);
   };
 
   const handleSendAd = () => {
@@ -3001,6 +3053,23 @@ export default function App() {
                       )}
 
                       {msg.type === 'text' && msg.text}
+                      {msg.type === 'gif' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
+                          <img
+                            src={msg.gifUrl}
+                            alt={msg.text || 'GIF'}
+                            onClick={() => setEnlargedGifUrl(msg.gifUrl || null)}
+                            style={{
+                              width: '100%',
+                              maxHeight: '260px',
+                              borderRadius: '12px',
+                              objectFit: 'cover',
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                          />
+                        </div>
+                      )}
                       {msg.type === 'voice' && (
                         <CustomAudioPlayer src={msg.voiceBlob} isMine={isMine} />
                       )}
@@ -3134,6 +3203,23 @@ export default function App() {
                   </>
                 )}
 
+                {!isRecording && (
+                  <button
+                    className="send-btn"
+                    onClick={() => {
+                      if (viewMode === 'public' && !username) {
+                        setShowLoginModal(true);
+                        return;
+                      }
+                      setShowGifPicker(true);
+                    }}
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--primary)', border: '1px solid var(--panel-border)' }}
+                    title="Send GIF"
+                  >
+                    <ImageIcon size={20} />
+                  </button>
+                )}
+
                 {(viewMode === 'public' ? publicInput : inputText) ? (
                   <button
                     className="send-btn"
@@ -3237,6 +3323,66 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <GifPickerModal
+        isOpen={showGifPicker}
+        onClose={() => setShowGifPicker(false)}
+        onSelectGif={(url, title) => handleSendGif(url, title)}
+      />
+
+      {enlargedGifUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 4000,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+          onClick={() => setEnlargedGifUrl(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={enlargedGifUrl}
+              alt="GIF Preview"
+              style={{
+                width: '100%',
+                height: '100%',
+                maxHeight: '85vh',
+                objectFit: 'contain',
+                borderRadius: '16px',
+                boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+              }}
+            />
+            <button
+              onClick={() => setEnlargedGifUrl(null)}
+              style={{
+                position: 'absolute',
+                top: '-15px',
+                right: '-15px',
+                background: 'var(--primary)',
+                color: '#000',
+                border: 'none',
+                borderRadius: '50%',
+                width: '36px',
+                height: '36px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)'
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+      )}
 
       <audio ref={remoteAudioRef} autoPlay className="hidden-audio" />
     </main>
