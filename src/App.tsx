@@ -1458,46 +1458,6 @@ export default function App() {
   }, [isAdminAuth]);
 
   useEffect(() => {
-    // Inject a fake AD message into the public chat exactly 10 seconds after joining
-    const adTimer = setTimeout(() => {
-      const adMsg = {
-        id: uuidv4(),
-        senderId: 'system-ad',
-        senderName: 'Sponsor',
-        type: 'ad',
-        text: `<div style="display: flex; flex-direction: column; align-items: stretch; background: var(--panel-bg); border-radius: 12px; overflow: hidden; border: 1px solid var(--panel-border);">
-          <div style="background: white; padding: 20px; display: flex; justify-content: center; align-items: center;">
-            <img src="https://twingle.online/twingle-logo.png" style="height: 60px;" alt="Twingle Logo" />
-          </div>
-          <div style="padding: 12px; text-align: center;">
-            <div style="font-weight: 700; color: var(--text-main); font-size: 1.1rem; margin-bottom: 4px;">FREE MALLU DATING APP</div>
-            <div style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 12px;">Find love, marriage, and friendship in Kerala.</div>
-            <a href="https://twingle.online" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: var(--primary); color: black; font-weight: bold; padding: 8px 16px; border-radius: 20px; text-decoration: none; font-size: 0.9rem;">Visit twingle.online</a>
-          </div>
-        </div>`,
-        timestamp: Date.now()
-      };
-      setPublicMessages(prev => {
-        if (prev.some(m => m.senderId === 'system-ad')) return prev;
-        const updated = [...prev, adMsg];
-        localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
-        return updated;
-      });
-      setMessages(prev => {
-        if (prev.some(m => m.senderId === 'system-ad')) return prev;
-        const updated = [...prev, adMsg];
-        const remotePeerId = peerEngine.connection?.peer;
-        if (remotePeerId) {
-          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
-        }
-        return updated;
-      });
-    }, 10000);
-
-    return () => clearTimeout(adTimer);
-  }, []);
-
-  useEffect(() => {
     if (remoteStream && remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = remoteStream;
     }
