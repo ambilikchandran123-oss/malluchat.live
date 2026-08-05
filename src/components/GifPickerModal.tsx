@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, X, Upload, Link as LinkIcon, Loader2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { uploadOrCompressImage } from '../utils/image-uploader';
 
 interface GifPickerModalProps {
   isOpen: boolean;
@@ -143,20 +144,9 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('https://tmpfiles.org/api/v1/upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-      if (data?.data?.url) {
-        const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-        onSelectGif(directUrl, file.name);
-        onClose();
-      } else {
-        throw new Error('Upload response invalid');
-      }
+      const directUrl = await uploadOrCompressImage(file);
+      onSelectGif(directUrl, file.name);
+      onClose();
     } catch (err) {
       alert('Failed to upload GIF file. Please check internet connection or try pasting direct URL.');
     } finally {

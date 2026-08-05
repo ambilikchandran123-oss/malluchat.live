@@ -7,6 +7,7 @@ import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
+import { uploadOrCompressImage } from './utils/image-uploader';
 import './index.css';
 
 // Mock UI sounds
@@ -1963,7 +1964,7 @@ export default function App() {
     setReplyingTo(null);
   };
 
-  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1973,36 +1974,15 @@ export default function App() {
     }
 
     setIsUploadingImage(true);
-    const form = new FormData();
-    form.append('file', file);
-
-    fetch('https://tmpfiles.org/api/v1/upload', {
-      method: 'POST',
-      body: form
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data?.data?.url) {
-          const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-          handleSendImage(directUrl, file.name);
-        } else {
-          throw new Error("Upload failed");
-        }
-      })
-      .catch(() => {
-        // Fallback: Read as base64 data URL for local display / peer transmission
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-          if (evt.target?.result) {
-            handleSendImage(evt.target.result as string, file.name);
-          }
-        };
-        reader.readAsDataURL(file);
-      })
-      .finally(() => {
-        setIsUploadingImage(false);
-        e.target.value = '';
-      });
+    try {
+      const imageUrl = await uploadOrCompressImage(file);
+      handleSendImage(imageUrl, file.name);
+    } catch (err) {
+      alert("Failed to process image attachment. Please try again.");
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
   };
 
   const handleSendAd = () => {
