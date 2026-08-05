@@ -1,6 +1,6 @@
 import Peer, { type DataConnection, type MediaConnection } from 'peerjs';
 
-export type MessageType = 'text' | 'voice' | 'typing_start' | 'typing_stop' | 'reaction' | 'read' | 'public_text' | 'ad' | 'gif';
+export type MessageType = 'text' | 'voice' | 'typing_start' | 'typing_stop' | 'reaction' | 'read' | 'public_text' | 'ad' | 'gif' | 'image';
 
 export type IncomingMessage = {
     id: string;
@@ -11,6 +11,7 @@ export type IncomingMessage = {
     voiceBlob?: string; // base64 encoded audio
     adImageUrl?: string; // image for ads
     gifUrl?: string; // animated gif URL
+    imageUrl?: string; // photo/image attachment URL
     reaction?: string;
     targetId?: string; // for reactions/read receipts
     replyToId?: string; // ID of the message being replied to

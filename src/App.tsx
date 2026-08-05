@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -369,9 +369,10 @@ export default function App() {
   });
   const [publicInput, setPublicInput] = useState<string>('');
 
-  // GIF picker states
+  // GIF & Image states
   const [showGifPicker, setShowGifPicker] = useState<boolean>(false);
   const [enlargedGifUrl, setEnlargedGifUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
 
   // Reply State
   const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -1316,7 +1317,7 @@ export default function App() {
       receivedSound.play().catch(() => { });
 
       // Send back read receipt automatically
-      if (msg.type === 'text' || msg.type === 'voice' || msg.type === 'gif') {
+      if (msg.type === 'text' || msg.type === 'voice' || msg.type === 'gif' || msg.type === 'image') {
         peerEngine.sendMessage({
           id: uuidv4(),
           senderId: peerEngine.id,
@@ -1954,6 +1955,94 @@ export default function App() {
     }
 
     setReplyingTo(null);
+  };
+
+  const handleSendImage = (imageUrl: string, title?: string) => {
+    if (!username && viewMode === 'public') {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!rateLimiter.current.checkLimit()) return alert("Slow down.");
+
+    const msg = {
+      id: uuidv4(),
+      senderId: myId,
+      senderName: username,
+      type: 'image',
+      imageUrl,
+      text: title || 'Image',
+      timestamp: Date.now(),
+      replyToId: replyingTo?.id,
+      replyText: replyingTo?.text || "Photo"
+    };
+
+    if (viewMode === 'public') {
+      setPublicMessages(prev => {
+        const updated = [...prev, msg];
+        localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+        return updated;
+      });
+      fetch(POST_URL, {
+        method: 'POST',
+        body: JSON.stringify(msg)
+      }).catch(() => { });
+    } else {
+      peerEngine.sendMessage(msg as any);
+      setMessages(prev => {
+        const updated = [...prev, msg];
+        const remotePeerId = peerEngine.connection?.peer;
+        if (remotePeerId) {
+          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
+      sentSound.play().catch(() => { });
+    }
+
+    setReplyingTo(null);
+  };
+
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!username && viewMode === 'public') {
+      setShowLoginModal(true);
+      return;
+    }
+
+    setIsUploadingImage(true);
+    const form = new FormData();
+    form.append('file', file);
+
+    fetch('https://tmpfiles.org/api/v1/upload', {
+      method: 'POST',
+      body: form
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data?.data?.url) {
+          const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+          handleSendImage(directUrl, file.name);
+        } else {
+          throw new Error("Upload failed");
+        }
+      })
+      .catch(() => {
+        // Fallback: Read as base64 data URL for local display / peer transmission
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          if (evt.target?.result) {
+            handleSendImage(evt.target.result as string, file.name);
+          }
+        };
+        reader.readAsDataURL(file);
+      })
+      .finally(() => {
+        setIsUploadingImage(false);
+        e.target.value = '';
+      });
   };
 
   const handleSendAd = () => {
@@ -3069,6 +3158,23 @@ export default function App() {
                           />
                         </div>
                       )}
+                      {msg.type === 'image' && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
+                          <img
+                            src={msg.imageUrl}
+                            alt={msg.text || 'Photo'}
+                            onClick={() => setEnlargedGifUrl(msg.imageUrl || null)}
+                            style={{
+                              width: '100%',
+                              maxHeight: '280px',
+                              borderRadius: '12px',
+                              objectFit: 'cover',
+                              cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                          />
+                        </div>
+                      )}
                       {msg.type === 'voice' && (
                         <CustomAudioPlayer src={msg.voiceBlob} isMine={isMine} />
                       )}
@@ -3203,20 +3309,37 @@ export default function App() {
                 )}
 
                 {!isRecording && (
-                  <button
-                    className="send-btn"
-                    onClick={() => {
-                      if (viewMode === 'public' && !username) {
-                        setShowLoginModal(true);
-                        return;
-                      }
-                      setShowGifPicker(true);
-                    }}
-                    style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--primary)', border: '1px solid var(--panel-border)' }}
-                    title="Send GIF"
-                  >
-                    <ImageIcon size={20} />
-                  </button>
+                  <>
+                    <button
+                      className="send-btn"
+                      onClick={() => {
+                        if (viewMode === 'public' && !username) {
+                          setShowLoginModal(true);
+                          return;
+                        }
+                        setShowGifPicker(true);
+                      }}
+                      style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--primary)', border: '1px solid var(--panel-border)' }}
+                      title="Send GIF"
+                    >
+                      <ImageIcon size={20} />
+                    </button>
+
+                    <label
+                      className="send-btn"
+                      style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--primary)', border: '1px solid var(--panel-border)', cursor: isUploadingImage ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Send Image / Photo"
+                    >
+                      {isUploadingImage ? <Loader2 size={20} className="spin" /> : <Camera size={20} />}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageFileUpload}
+                        disabled={isUploadingImage}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                  </>
                 )}
 
                 {(viewMode === 'public' ? publicInput : inputText) ? (
