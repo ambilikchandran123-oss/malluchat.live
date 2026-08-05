@@ -1562,37 +1562,37 @@ export default function App() {
               sentSound.play().catch(() => { });
             };
 
-            // Upload voice blob to tmpfiles.org with fallback to catbox.moe
-            const formData = new FormData();
-            formData.append('file', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
+            // Upload voice blob to catbox.moe (serves proper audio/mpeg & audio/mp4 headers)
+            const catboxData = new FormData();
+            catboxData.append('reqtype', 'fileupload');
+            catboxData.append('fileToUpload', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
 
-            fetch('https://tmpfiles.org/api/v1/upload', {
+            fetch('https://catbox.moe/user/api.php', {
               method: 'POST',
-              body: formData
+              body: catboxData
             })
-              .then(res => res.json())
-              .then(data => {
-                if (data?.status === 'success' && data?.data?.url) {
-                  const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
-                  sendPublicVoiceMsg(directUrl);
+              .then(res => res.text())
+              .then(url => {
+                if (url && url.trim().startsWith('http')) {
+                  sendPublicVoiceMsg(url.trim());
                 } else {
-                  throw new Error("tmpfiles upload failed");
+                  throw new Error("Catbox voice upload failed");
                 }
               })
               .catch(err => {
-                console.warn("tmpfiles voice upload failed, trying fallback:", err);
-                const catboxData = new FormData();
-                catboxData.append('reqtype', 'fileupload');
-                catboxData.append('fileToUpload', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
+                console.warn("Catbox voice upload failed, trying fallback:", err);
+                const formData = new FormData();
+                formData.append('file', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
 
-                fetch('https://catbox.moe/user/api.php', {
+                fetch('https://tmpfiles.org/api/v1/upload', {
                   method: 'POST',
-                  body: catboxData
+                  body: formData
                 })
-                  .then(res => res.text())
-                  .then(url => {
-                    if (url && url.trim().startsWith('http')) {
-                      sendPublicVoiceMsg(url.trim());
+                  .then(res => res.json())
+                  .then(data => {
+                    if (data?.status === 'success' && data?.data?.url) {
+                      const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+                      sendPublicVoiceMsg(directUrl);
                     } else {
                       alert("Failed to upload voice message. Please check connection.");
                     }
@@ -1746,7 +1746,7 @@ export default function App() {
 
     return (
       <div className="audio-player-wrapper" style={{ background: isMine ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.08)', padding: '8px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}>
-        <audio ref={audioRef} src={src} className="hidden-audio" preload="auto" crossOrigin="anonymous" />
+        <audio ref={audioRef} src={src} className="hidden-audio" preload="auto" />
         <button className="play-btn" onClick={togglePlay} style={{ background: isMine ? 'var(--primary)' : 'var(--text-main)', color: '#000', width: '36px', height: '36px', minWidth: '36px', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           {isPlaying ? (
             <div style={{ width: '10px', height: '10px', background: '#000', borderRadius: '1px' }}></div>
