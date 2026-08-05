@@ -3104,13 +3104,21 @@ export default function App() {
                             src={msg.imageUrl}
                             alt={msg.text || 'Photo'}
                             onClick={() => setEnlargedGifUrl(msg.imageUrl || null)}
+                            onError={(e) => {
+                              const target = e.currentTarget;
+                              if (!target.dataset.failed) {
+                                target.dataset.failed = 'true';
+                                target.src = 'https://iili.io/CgEX66x.gif';
+                              }
+                            }}
                             style={{
                               width: '100%',
                               maxHeight: '280px',
                               borderRadius: '12px',
                               objectFit: 'cover',
                               cursor: 'pointer',
-                              border: '1px solid rgba(255,255,255,0.1)'
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              background: 'rgba(255,255,255,0.05)'
                             }}
                           />
                         </div>
@@ -3355,8 +3363,8 @@ export default function App() {
               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Sponsored</span>
               <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>Promo</span>
             </div>
-            <div style={{ background: 'white', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <img src="https://twingle.online/twingle-logo.png" alt="Twingle Logo" style={{ height: '40px', objectFit: 'contain' }} />
+            <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '12px 20px', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '1px', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
+              💖 Twingle.online
             </div>
             <div style={{ fontSize: '0.85rem', lineHeight: '1.5', textAlign: 'center', color: 'var(--text-main)' }}>
               <strong>FREE MALLU DATING APP</strong>
