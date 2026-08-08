@@ -497,6 +497,47 @@ export default function App() {
       setActivePrivatePeerId('');
       return;
     }
+    if (msg.type === 'call_invite') {
+      setIncomingCallRequest({
+        fromId: msg.senderId,
+        fromName: msg.senderName,
+        isVideo: msg.text === 'video'
+      });
+      ringtone.start(true);
+      return;
+    }
+    if (msg.type === 'call_cancel') {
+      ringtone.stop();
+      setIncomingCallRequest(null);
+      setActiveCallingUser(null);
+      return;
+    }
+    if (msg.type === 'call_decline') {
+      ringtone.stop();
+      setActiveCallingUser(null);
+      alert(`${msg.senderName} declined the call.`);
+      return;
+    }
+    if (msg.type === 'call_accept') {
+      ringtone.stop();
+      const isVideo = activeCallingUserRef.current?.isVideo || false;
+
+      if (peerEngine.localStream) {
+        const call = peerEngine.startCall(
+          msg.senderId,
+          peerEngine.localStream,
+          (rStream) => {
+            rStream.getTracks().forEach(t => { t.enabled = true; });
+            setRemoteStream(rStream);
+          },
+          { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+        );
+        if (call) {
+          setInCall(true);
+        }
+      }
+      return;
+    }
     if (msg.type === 'typing_start') {
       setRemoteTyping(true);
       return;
@@ -929,16 +970,10 @@ export default function App() {
 
     // If it's a real private chat call, send a cancel signal
     if (activeCallingUser && !activeCallingUser.id?.startsWith('demo-')) {
-      const remoteId = peerEngine.connection?.peer;
-      if (remoteId) {
-        peerEngine.sendMessage({
-          id: uuidv4(),
-          senderId: peerEngine.id,
-          senderName: usernameRef.current || 'User',
-          type: 'call_cancel' as any,
-          timestamp: Date.now()
-        });
-      }
+      sendPrivateMessage({
+        id: uuidv4(),
+        type: 'call_cancel'
+      });
     }
 
     handleEndCall(true);
@@ -977,22 +1012,16 @@ export default function App() {
       setInCall(true);
 
       // Send accept signal back to initiator
-      peerEngine.sendMessage({
+      sendPrivateMessage({
         id: uuidv4(),
-        senderId: peerEngine.id,
-        senderName: usernameRef.current || 'User',
-        type: 'call_accept' as any,
-        timestamp: Date.now()
+        type: 'call_accept'
       });
     } catch (err) {
       alert("Permission denied. Could not access camera or microphone.");
       // Send decline to remote peer so they aren't stuck calling forever
-      peerEngine.sendMessage({
+      sendPrivateMessage({
         id: uuidv4(),
-        senderId: peerEngine.id,
-        senderName: usernameRef.current || 'User',
-        type: 'call_decline' as any,
-        timestamp: Date.now()
+        type: 'call_decline'
       });
     }
   };
@@ -1003,12 +1032,9 @@ export default function App() {
 
     setIncomingCallRequest(null);
 
-    peerEngine.sendMessage({
+    sendPrivateMessage({
       id: uuidv4(),
-      senderId: peerEngine.id,
-      senderName: usernameRef.current || 'User',
-      type: 'call_decline' as any,
-      timestamp: Date.now()
+      type: 'call_decline'
     });
   };
 
@@ -1540,14 +1566,20 @@ export default function App() {
   }, [isAdminAuth]);
 
   useEffect(() => {
-    if (remoteStream && remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = remoteStream;
-    }
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(t => { t.enabled = true; });
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream;
+        remoteAudioRef.current.play().catch(e => console.warn("Remote audio play catch:", e));
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+        remoteVideoRef.current.play().catch(e => console.warn("Remote video play catch:", e));
+      }
     }
     if (peerEngine.localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = peerEngine.localStream;
+      localVideoRef.current.play().catch(e => console.warn("Local video play catch:", e));
     }
   }, [remoteStream, inCall, viewMode]);
 
@@ -2138,7 +2170,7 @@ export default function App() {
   };
 
   const initiateCall = async (isVideo: boolean = false) => {
-    const remoteId = peerEngine.connection?.peer;
+    const remoteId = activePrivatePeerIdRef.current || peerEngine.connection?.peer;
     if (!remoteId) return alert('No active peer connected');
 
     try {
@@ -2161,14 +2193,19 @@ export default function App() {
 
       ringtone.start(true);
 
-      // Send call invite signal to remote peer
-      peerEngine.sendMessage({
+      // Auto-cancel call if unanswered after 25 seconds
+      if (ringingTimeout) clearTimeout(ringingTimeout);
+      const timeout = setTimeout(() => {
+        handleCancelCall();
+        alert("Call unanswered.");
+      }, 25000);
+      setRingingTimeout(timeout);
+
+      // Send call invite signal to remote peer via fallback relay
+      sendPrivateMessage({
         id: uuidv4(),
-        senderId: peerEngine.id,
-        senderName: usernameRef.current || 'User',
-        type: 'call_invite' as any,
-        text: isVideo ? 'video' : 'voice',
-        timestamp: Date.now()
+        type: 'call_invite',
+        text: isVideo ? 'video' : 'voice'
       });
     } catch (err) {
       alert("Microphone/Camera permission required for calls.");
@@ -3562,7 +3599,7 @@ export default function App() {
         </div>
       )}
 
-      <audio ref={remoteAudioRef} autoPlay className="hidden-audio" />
+      <audio ref={remoteAudioRef} autoPlay playsInline controls={false} className="hidden-audio" />
     </main>
   );
 }
