@@ -413,6 +413,8 @@ export default function App() {
   viewModeRef.current = viewMode;
   const usernameRef = useRef(username);
   usernameRef.current = username;
+  const myIdRef = useRef(myId);
+  myIdRef.current = myId;
   const statusRef = useRef(status);
   statusRef.current = status;
   const isCancelingVoiceRef = useRef<boolean>(false);
@@ -1020,6 +1022,35 @@ export default function App() {
             try {
               const payload = JSON.parse(data.message);
 
+              if (payload && payload.isPrivate) {
+                const isForMe = (payload.recipientId && (payload.recipientId === myIdRef.current || payload.recipientId === usernameRef.current)) ||
+                                (payload.senderId && payload.senderId !== myIdRef.current && viewModeRef.current === 'private');
+                if (isForMe) {
+                  if (payload.type === 'public-invite') {
+                    setIncomingChatRequest({ conn: null, metadata: { senderName: payload.senderName, peerId: payload.senderId } });
+                  } else if (payload.type === 'accept') {
+                    setRemoteUsername(payload.senderName);
+                    setStatus('connected');
+                  } else if (payload.type === 'decline') {
+                    setStatus('disconnected');
+                    setViewMode('public');
+                    alert(`${payload.senderName} declined your chat request.`);
+                  } else {
+                    setRemoteTyping(false);
+                    setMessages(prev => {
+                      if (prev.some(m => m.id === payload.id)) return prev;
+                      const updated = [...prev, payload];
+                      if (payload.senderId) {
+                        localStorage.setItem(`malluchat_private_messages_${payload.senderId}`, JSON.stringify(updated));
+                      }
+                      return updated;
+                    });
+                    receivedSound.play().catch(() => { });
+                  }
+                }
+                return;
+              }
+
               setPublicMessages(prev => {
                 if (prev.find(m => m.id === payload.id)) return prev;
                 const updated = [...prev, payload];
@@ -1557,12 +1588,13 @@ export default function App() {
 
               fetch(POST_URL, {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(publicMsg)
               }).catch(() => { });
               sentSound.play().catch(() => { });
             };
 
-            // Upload voice blob to catbox.moe (serves proper audio/mpeg & audio/mp4 headers)
+            // Upload voice blob with multi-tier fallback
             const catboxData = new FormData();
             catboxData.append('reqtype', 'fileupload');
             catboxData.append('fileToUpload', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
@@ -1580,7 +1612,7 @@ export default function App() {
                 }
               })
               .catch(err => {
-                console.warn("Catbox voice upload failed, trying fallback:", err);
+                console.warn("Catbox voice upload failed, trying tmpfiles fallback:", err);
                 const formData = new FormData();
                 formData.append('file', audioBlob, `voice_${uuidv4().substring(0, 8)}.${extension}`);
 
@@ -1594,19 +1626,34 @@ export default function App() {
                       const directUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
                       sendPublicVoiceMsg(directUrl);
                     } else {
-                      alert("Failed to upload voice message. Please check connection.");
+                      // Fallback: embedded compressed base64 audio
+                      sendPublicVoiceMsg(base64Audio);
                     }
                   })
-                  .catch(cErr => {
-                    console.error("Voice message upload completely failed:", cErr);
-                    alert("Failed to upload voice message. Please check connection.");
+                  .catch(() => {
+                    // Fallback: embedded compressed base64 audio
+                    sendPublicVoiceMsg(base64Audio);
                   });
               });
           } else {
-            peerEngine.sendMessage(msg);
+            const remotePeerId = peerEngine.connection?.peer || remoteUsername;
+            const privateVoiceMsg = {
+              ...msg,
+              isPrivate: true,
+              recipientId: remotePeerId
+            };
+
+            const p2pSent = peerEngine.sendMessage(privateVoiceMsg);
+            if (!p2pSent) {
+              fetch(POST_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(privateVoiceMsg)
+              }).catch(() => {});
+            }
+
             setMessages(prev => {
-              const updated = [...prev, msg];
-              const remotePeerId = peerEngine.connection?.peer;
+              const updated = [...prev, privateVoiceMsg];
               if (remotePeerId) {
                 localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
               }
@@ -1663,19 +1710,8 @@ export default function App() {
       };
 
       const handleLoadedMetadata = () => {
-        if (audio.duration && isFinite(audio.duration)) {
+        if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
           setDuration(audio.duration);
-        } else {
-          // WebM duration workaround for MediaRecorder recordings
-          audio.currentTime = 1e101;
-          const tempTimeUpdate = () => {
-            audio.ontimeupdate = null;
-            audio.currentTime = 0;
-            if (audio.duration && isFinite(audio.duration)) {
-              setDuration(audio.duration);
-            }
-          };
-          audio.ontimeupdate = tempTimeUpdate;
         }
       };
 
@@ -1780,15 +1816,33 @@ export default function App() {
     if (remoteId === myId) return alert("You cannot private chat with yourself!");
 
     peerEngine.connectToPeer(remoteId, { senderName: username, type: 'public-invite' });
+
+    // Send fallback signaling relay message in case WebRTC takes time or is blocked
+    fetch(POST_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: uuidv4(),
+        senderId: myId,
+        senderName: username,
+        type: 'public-invite',
+        isPrivate: true,
+        recipientId: remoteId,
+        timestamp: Date.now()
+      })
+    }).catch(() => {});
+
     setRemoteUsername(remoteName);
     setViewMode('private');
     setStatus('connecting');
 
     if (privateConnectionTimeoutRef.current) clearTimeout(privateConnectionTimeoutRef.current);
     privateConnectionTimeoutRef.current = setTimeout(() => {
-      alert("Connection timed out. The user might be offline or has left.");
-      handleLeavePrivateChat();
-    }, 12000); // 12 seconds timeout
+      // Transition to connected state so user can send via server relay if WebRTC P2P direct fails
+      if (statusRef.current === 'connecting') {
+        setStatus('connected');
+      }
+    }, 4000);
   };
 
   const handleSend = () => {
@@ -1817,10 +1871,24 @@ export default function App() {
       replyText: replyingTo?.text || "Voice/Image"
     } as any;
 
-    peerEngine.sendMessage(msg);
+    const remotePeerId = peerEngine.connection?.peer || remoteUsername;
+    const privateTextMsg = {
+      ...msg,
+      isPrivate: true,
+      recipientId: remotePeerId
+    };
+
+    const p2pSent = peerEngine.sendMessage(privateTextMsg);
+    if (!p2pSent) {
+      fetch(POST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(privateTextMsg)
+      }).catch(() => {});
+    }
+
     setMessages(prev => {
-      const updated = [...prev, msg];
-      const remotePeerId = peerEngine.connection?.peer;
+      const updated = [...prev, privateTextMsg];
       if (remotePeerId) {
         localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
       }
@@ -1899,13 +1967,28 @@ export default function App() {
       });
       fetch(POST_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(msg)
       }).catch(() => { });
     } else {
-      peerEngine.sendMessage(msg as any);
+      const remotePeerId = peerEngine.connection?.peer || remoteUsername;
+      const privateGifMsg = {
+        ...msg,
+        isPrivate: true,
+        recipientId: remotePeerId
+      };
+
+      const p2pSent = peerEngine.sendMessage(privateGifMsg as any);
+      if (!p2pSent) {
+        fetch(POST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(privateGifMsg)
+        }).catch(() => {});
+      }
+
       setMessages(prev => {
-        const updated = [...prev, msg];
-        const remotePeerId = peerEngine.connection?.peer;
+        const updated = [...prev, privateGifMsg];
         if (remotePeerId) {
           localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
         }
@@ -1946,13 +2029,28 @@ export default function App() {
       });
       fetch(POST_URL, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(msg)
       }).catch(() => { });
     } else {
-      peerEngine.sendMessage(msg as any);
+      const remotePeerId = peerEngine.connection?.peer || remoteUsername;
+      const privateImgMsg = {
+        ...msg,
+        isPrivate: true,
+        recipientId: remotePeerId
+      };
+
+      const p2pSent = peerEngine.sendMessage(privateImgMsg as any);
+      if (!p2pSent) {
+        fetch(POST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(privateImgMsg)
+        }).catch(() => {});
+      }
+
       setMessages(prev => {
-        const updated = [...prev, msg];
-        const remotePeerId = peerEngine.connection?.peer;
+        const updated = [...prev, privateImgMsg];
         if (remotePeerId) {
           localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
         }

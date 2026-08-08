@@ -5,7 +5,12 @@
  * Guarantees photos display 100% of the time for all receiving users!
  */
 
-export const compressToDataUrl = (file: File, maxWidth = 300, maxHeight = 300, quality = 0.35): Promise<string> => {
+export const compressToDataUrl = (
+  file: File,
+  maxWidth = 300,
+  maxHeight = 300,
+  quality = 0.35
+): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -53,39 +58,72 @@ export interface ProcessedImageResult {
 }
 
 export const processImageAttachment = async (file: File): Promise<ProcessedImageResult> => {
-  // 1. Always generate ultra-compact permanent embedded thumbnail (~2KB data URL)
+  // 1. Generate ultra-compact permanent embedded thumbnail (~3-8KB data URL)
   let thumbUrl = '';
   try {
-    thumbUrl = await compressToDataUrl(file, 300, 300, 0.35);
+    thumbUrl = await compressToDataUrl(file, 250, 250, 0.3);
   } catch (e) {
-    console.warn('Canvas thumb generation error:', e);
+    console.warn('Thumbnail generation error:', e);
   }
 
-  let imageUrl = thumbUrl;
-
-  // 2. Try remote upload for full-size direct link
+  // 2. Generate optimized fallback full image (~40-90KB data URL)
+  let compactFullUrl = '';
   try {
-    const form = new FormData();
-    form.append('file', file);
+    compactFullUrl = await compressToDataUrl(file, 700, 700, 0.55);
+  } catch (e) {
+    compactFullUrl = thumbUrl;
+  }
 
-    const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+  let remoteUrl = '';
+
+  // 3. Try Catbox upload provider first (permanent HTTPS direct link)
+  try {
+    const catboxForm = new FormData();
+    catboxForm.append('reqtype', 'fileupload');
+    catboxForm.append('fileToUpload', file, file.name || 'photo.jpg');
+
+    const catboxRes = await fetch('https://catbox.moe/user/api.php', {
       method: 'POST',
-      body: form
+      body: catboxForm
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.data?.url) {
-        imageUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+    if (catboxRes.ok) {
+      const text = await catboxRes.text();
+      if (text && text.trim().startsWith('http')) {
+        remoteUrl = text.trim();
       }
     }
   } catch (e) {
-    console.warn('Remote upload bypassed, using permanent embedded thumbnail:', e);
+    console.warn('Catbox upload failed, trying secondary host:', e);
   }
 
+  // 4. Try Tmpfiles provider fallback if Catbox failed
+  if (!remoteUrl) {
+    try {
+      const tmpForm = new FormData();
+      tmpForm.append('file', file);
+
+      const tmpRes = await fetch('https://tmpfiles.org/api/v1/upload', {
+        method: 'POST',
+        body: tmpForm
+      });
+
+      if (tmpRes.ok) {
+        const data = await tmpRes.json();
+        if (data?.data?.url) {
+          remoteUrl = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+        }
+      }
+    } catch (e) {
+      console.warn('Tmpfiles upload failed:', e);
+    }
+  }
+
+  const finalImageUrl = remoteUrl || compactFullUrl || thumbUrl;
+
   return {
-    imageUrl: imageUrl || thumbUrl,
-    thumbUrl: thumbUrl || imageUrl
+    imageUrl: finalImageUrl,
+    thumbUrl: thumbUrl || finalImageUrl
   };
 };
 

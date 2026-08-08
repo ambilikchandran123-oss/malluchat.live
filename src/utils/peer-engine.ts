@@ -193,10 +193,21 @@ export class PeerEngine {
         });
     }
 
-    sendMessage(msg: IncomingMessage) {
+    isPeerConnected(): boolean {
+        return !!(this.connection && this.connection.open);
+    }
+
+    sendMessage(msg: IncomingMessage): boolean {
         if (this.connection && this.connection.open) {
-            this.connection.send(msg);
+            try {
+                this.connection.send(msg);
+                return true;
+            } catch (e) {
+                console.warn("PeerJS message send failed:", e);
+                return false;
+            }
         }
+        return false;
     }
 
     startCall(remoteId: string, stream: MediaStream, onRemoteStream: (stream: MediaStream) => void, options?: any): MediaConnection | null {
