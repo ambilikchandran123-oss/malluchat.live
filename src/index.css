@@ -450,11 +450,22 @@ body {
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   background: var(--primary);
   border-radius: 50%;
-  animation: pulseAuth 2s infinite;
+  animation: bounceDot 1.2s infinite ease-in-out;
+}
+
+@keyframes bounceDot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
 }
 
 .chat-messages {
@@ -805,8 +816,8 @@ body {
 }
 
 .msg-read {
-  color: #3b82f6 !important;
-  /* Blue tick */
+  color: #38bdf8 !important;
+  /* Double blue tick */
 }
 
 /* Call Overlay */

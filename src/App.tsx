@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -401,6 +401,9 @@ export default function App() {
   const incomingCallRequestRef = useRef(incomingCallRequest);
   incomingCallRequestRef.current = incomingCallRequest;
   const [remoteUsername, setRemoteUsername] = useState<string>('User');
+  const [activePrivatePeerId, setActivePrivatePeerId] = useState<string>('');
+  const activePrivatePeerIdRef = useRef(activePrivatePeerId);
+  activePrivatePeerIdRef.current = activePrivatePeerId;
 
   // Advanced features
   const [remoteTyping, setRemoteTyping] = useState<boolean>(false);
@@ -418,6 +421,139 @@ export default function App() {
   const statusRef = useRef(status);
   statusRef.current = status;
   const isCancelingVoiceRef = useRef<boolean>(false);
+
+  const sendPrivateMessage = (msgPayload: any) => {
+    const targetPeerId = activePrivatePeerIdRef.current || peerEngine.connection?.peer;
+    if (!targetPeerId) return false;
+
+    const fullMsg = {
+      ...msgPayload,
+      senderId: myIdRef.current,
+      senderName: usernameRef.current || 'User',
+      isPrivate: true,
+      recipientId: targetPeerId,
+      timestamp: msgPayload.timestamp || Date.now()
+    };
+
+    const p2pSent = peerEngine.sendMessage(fullMsg);
+    if (!p2pSent) {
+      fetch(POST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fullMsg)
+      }).catch(err => console.error("Private message relay failed:", err));
+    }
+    return true;
+  };
+
+  const processPrivatePayload = (msg: any) => {
+    if (msg.senderId && msg.senderId !== myIdRef.current) {
+      if (!activePrivatePeerIdRef.current) {
+        setActivePrivatePeerId(msg.senderId);
+      }
+    }
+
+    if (msg.type === 'public-invite') {
+      setIncomingChatRequest({ conn: null, metadata: { senderName: msg.senderName, peerId: msg.senderId } });
+      return;
+    }
+    if (msg.type === 'accept') {
+      if (privateConnectionTimeoutRef.current) {
+        clearTimeout(privateConnectionTimeoutRef.current);
+        privateConnectionTimeoutRef.current = null;
+      }
+      setRemoteUsername(msg.senderName);
+      setStatus('connected');
+      if (msg.senderId) {
+        setActivePrivatePeerId(msg.senderId);
+      }
+      return;
+    }
+    if (msg.type === 'decline') {
+      if (privateConnectionTimeoutRef.current) {
+        clearTimeout(privateConnectionTimeoutRef.current);
+        privateConnectionTimeoutRef.current = null;
+      }
+      alert(`${msg.senderName} declined your chat request.`);
+      setViewMode('public');
+      setStatus('disconnected');
+      setActivePrivatePeerId('');
+      return;
+    }
+    if (msg.type === 'typing_start') {
+      setRemoteTyping(true);
+      return;
+    }
+    if (msg.type === 'typing_stop') {
+      setRemoteTyping(false);
+      return;
+    }
+    if (msg.type === 'delivered') {
+      setMessages(prev => {
+        const updated = prev.map(m => m.id === msg.targetId && m.status !== 'read' ? { ...m, status: 'delivered' } : m);
+        const peerId = activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      return;
+    }
+    if (msg.type === 'read') {
+      setMessages(prev => {
+        const updated = prev.map(m => m.id === msg.targetId ? { ...m, status: 'read' } : m);
+        const peerId = activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      return;
+    }
+    if (msg.type === 'reaction') {
+      setMessages(prev => {
+        const updated = prev.map(m => m.id === msg.targetId ? { ...m, reaction: msg.reaction } : m);
+        const peerId = activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      return;
+    }
+
+    if (msg.type === 'text' || msg.type === 'voice' || msg.type === 'gif' || msg.type === 'image') {
+      setRemoteTyping(false);
+      setMessages(prev => {
+        if (prev.some(m => m.id === msg.id)) return prev;
+        const updated = [...prev, msg];
+        const peerId = msg.senderId || activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
+        }
+        return updated;
+      });
+      receivedSound.play().catch(() => { });
+
+      // Automatically emit delivered receipt
+      sendPrivateMessage({
+        id: uuidv4(),
+        type: 'delivered',
+        targetId: msg.id,
+        timestamp: Date.now()
+      });
+
+      // Emit read receipt if currently viewing private chat
+      if (viewModeRef.current === 'private') {
+        sendPrivateMessage({
+          id: uuidv4(),
+          type: 'read',
+          targetId: msg.id,
+          timestamp: Date.now()
+        });
+      }
+    }
+  };
 
   // Call states
   const [inCall, setInCall] = useState<boolean>(false);
@@ -1026,27 +1162,7 @@ export default function App() {
                 const isForMe = (payload.recipientId && (payload.recipientId === myIdRef.current || payload.recipientId === usernameRef.current)) ||
                                 (payload.senderId && payload.senderId !== myIdRef.current && viewModeRef.current === 'private');
                 if (isForMe) {
-                  if (payload.type === 'public-invite') {
-                    setIncomingChatRequest({ conn: null, metadata: { senderName: payload.senderName, peerId: payload.senderId } });
-                  } else if (payload.type === 'accept') {
-                    setRemoteUsername(payload.senderName);
-                    setStatus('connected');
-                  } else if (payload.type === 'decline') {
-                    setStatus('disconnected');
-                    setViewMode('public');
-                    alert(`${payload.senderName} declined your chat request.`);
-                  } else {
-                    setRemoteTyping(false);
-                    setMessages(prev => {
-                      if (prev.some(m => m.id === payload.id)) return prev;
-                      const updated = [...prev, payload];
-                      if (payload.senderId) {
-                        localStorage.setItem(`malluchat_private_messages_${payload.senderId}`, JSON.stringify(updated));
-                      }
-                      return updated;
-                    });
-                    receivedSound.play().catch(() => { });
-                  }
+                  processPrivatePayload(payload);
                 }
                 return;
               }
@@ -1088,7 +1204,6 @@ export default function App() {
             setViewMode('public');
             setStatus('disconnected');
           }
-          // Removed server-error/network alerts which lock the user in a failed loop
         }
       );
     }
@@ -1209,24 +1324,6 @@ export default function App() {
     };
 
     peerEngine.onMessage = (msg: any) => {
-      if (msg.type === 'accept') {
-        if (privateConnectionTimeoutRef.current) {
-          clearTimeout(privateConnectionTimeoutRef.current);
-          privateConnectionTimeoutRef.current = null;
-        }
-        setRemoteUsername(msg.senderName);
-        setStatus('connected');
-        
-        // Send our user_info back so the recipient knows our username
-        peerEngine.sendMessage({
-          id: uuidv4(),
-          senderId: peerEngine.id,
-          senderName: usernameRef.current || 'User',
-          type: 'user_info',
-          timestamp: Date.now()
-        } as any);
-        return;
-      }
       if (msg.type === 'call_invite') {
         setIncomingCallRequest({
           fromId: msg.senderId,
@@ -1291,74 +1388,8 @@ export default function App() {
         }
         return;
       }
-      if (msg.type === 'random_match_handshake') {
-        console.log("Handshake received from matched user:", msg.senderName, msg.senderId);
-        randomMatchActiveRef.current = msg.senderId;
-        setRemoteUsername(msg.senderName);
-        setActiveCallingUser({ id: msg.senderId, name: msg.senderName, avatar: '👤' });
-        return;
-      }
-      if (msg.type === 'camera_status') {
-        setRemoteCameraStatus(msg.text === 'on');
-        return;
-      }
-      if (msg.type === 'user_info') {
-        if (msg.senderName) setRemoteUsername(msg.senderName);
-        return;
-      }
-      if (msg.type === 'typing_start') {
-        setRemoteTyping(true);
-        return;
-      }
-      if (msg.type === 'typing_stop') {
-        setRemoteTyping(false);
-        return;
-      }
-      if (msg.type === 'reaction') {
-        setMessages(prev => {
-          const updated = prev.map(m => m.id === msg.targetId ? { ...m, reaction: msg.reaction } : m);
-          const remotePeerId = peerEngine.connection?.peer;
-          if (remotePeerId) {
-            localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
-          }
-          return updated;
-        });
-        return;
-      }
-      if (msg.type === 'read') {
-        setMessages(prev => {
-          const updated = prev.map(m => m.id === msg.targetId ? { ...m, status: 'read' } : m);
-          const remotePeerId = peerEngine.connection?.peer;
-          if (remotePeerId) {
-            localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
-          }
-          return updated;
-        });
-        return;
-      }
-
-      setRemoteTyping(false); // clear typing on msg receive
-      setMessages(prev => {
-        const updated = [...prev, msg];
-        const remotePeerId = peerEngine.connection?.peer;
-        if (remotePeerId) {
-          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
-        }
-        return updated;
-      });
-      receivedSound.play().catch(() => { });
-
-      // Send back read receipt automatically
-      if (msg.type === 'text' || msg.type === 'voice' || msg.type === 'gif' || msg.type === 'image') {
-        peerEngine.sendMessage({
-          id: uuidv4(),
-          senderId: peerEngine.id,
-          senderName: usernameRef.current,
-          type: 'read',
-          targetId: msg.id,
-          timestamp: Date.now()
-        });
-      }
+      
+      processPrivatePayload(msg);
     };
 
     peerEngine.onCallReceived = (call) => {
@@ -1502,12 +1533,12 @@ export default function App() {
   }, [remoteStream, inCall, viewMode]);
 
   const handleStartTyping = () => {
-    if (status !== 'connected') return;
-    peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_start', timestamp: Date.now() } as any);
+    if (viewMode !== 'private' || status !== 'connected') return;
+    sendPrivateMessage({ id: uuidv4(), type: 'typing_start' });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
-    }, 2000);
+      sendPrivateMessage({ id: uuidv4(), type: 'typing_stop' });
+    }, 2500);
   };
 
   const startRecording = async () => {
@@ -1815,22 +1846,13 @@ export default function App() {
     if (!remoteId) return alert("This user has an invalid connection ID.");
     if (remoteId === myId) return alert("You cannot private chat with yourself!");
 
+    setActivePrivatePeerId(remoteId);
     peerEngine.connectToPeer(remoteId, { senderName: username, type: 'public-invite' });
 
-    // Send fallback signaling relay message in case WebRTC takes time or is blocked
-    fetch(POST_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: uuidv4(),
-        senderId: myId,
-        senderName: username,
-        type: 'public-invite',
-        isPrivate: true,
-        recipientId: remoteId,
-        timestamp: Date.now()
-      })
-    }).catch(() => {});
+    sendPrivateMessage({
+      id: uuidv4(),
+      type: 'public-invite'
+    });
 
     setRemoteUsername(remoteName);
     setViewMode('private');
@@ -1842,7 +1864,7 @@ export default function App() {
       if (statusRef.current === 'connecting') {
         setStatus('connected');
       }
-    }, 4000);
+    }, 3000);
   };
 
   const handleSend = () => {
@@ -1861,42 +1883,27 @@ export default function App() {
 
     const msg = {
       id: uuidv4(),
-      senderId: myId,
-      senderName: username,
       type: 'text',
       text: inputText,
       timestamp: Date.now(),
-      status: 'delivered',
+      status: 'sent',
       replyToId: replyingTo?.id,
       replyText: replyingTo?.text || "Voice/Image"
-    } as any;
-
-    const remotePeerId = peerEngine.connection?.peer || remoteUsername;
-    const privateTextMsg = {
-      ...msg,
-      isPrivate: true,
-      recipientId: remotePeerId
     };
 
-    const p2pSent = peerEngine.sendMessage(privateTextMsg);
-    if (!p2pSent) {
-      fetch(POST_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(privateTextMsg)
-      }).catch(() => {});
-    }
+    sendPrivateMessage(msg);
 
     setMessages(prev => {
-      const updated = [...prev, privateTextMsg];
-      if (remotePeerId) {
-        localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+      const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
+      const peerId = activePrivatePeerIdRef.current;
+      if (peerId) {
+        localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
       }
       return updated;
     });
     setInputText('');
     setReplyingTo(null);
-    peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
+    sendPrivateMessage({ id: uuidv4(), type: 'typing_stop' });
     sentSound.play().catch(() => { });
 
     // Dismiss virtual keyboard on smartphones
@@ -1949,52 +1956,38 @@ export default function App() {
 
     const msg = {
       id: uuidv4(),
-      senderId: myId,
-      senderName: username,
       type: 'gif',
       gifUrl,
       text: title || 'GIF',
       timestamp: Date.now(),
+      status: 'sent',
       replyToId: replyingTo?.id,
       replyText: replyingTo?.text || "GIF"
     };
 
     if (viewMode === 'public') {
+      const publicMsg = { ...msg, senderId: myId, senderName: username };
       setPublicMessages(prev => {
-        const updated = [...prev, msg];
+        const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
         return updated;
       });
       fetch(POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msg)
+        body: JSON.stringify(publicMsg)
       }).catch(() => { });
     } else {
-      const remotePeerId = peerEngine.connection?.peer || remoteUsername;
-      const privateGifMsg = {
-        ...msg,
-        isPrivate: true,
-        recipientId: remotePeerId
-      };
-
-      const p2pSent = peerEngine.sendMessage(privateGifMsg as any);
-      if (!p2pSent) {
-        fetch(POST_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(privateGifMsg)
-        }).catch(() => {});
-      }
-
+      sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, privateGifMsg];
-        if (remotePeerId) {
-          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
+        const peerId = activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
         }
         return updated;
       });
-      peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
+      sendPrivateMessage({ id: uuidv4(), type: 'typing_stop' });
       sentSound.play().catch(() => { });
     }
 
@@ -2010,53 +2003,39 @@ export default function App() {
 
     const msg = {
       id: uuidv4(),
-      senderId: myId,
-      senderName: username,
       type: 'image',
       imageUrl: imageUrl || thumbUrl,
       thumbUrl: thumbUrl || imageUrl,
       text: title || 'Image',
       timestamp: Date.now(),
+      status: 'sent',
       replyToId: replyingTo?.id,
       replyText: replyingTo?.text || "Photo"
     };
 
     if (viewMode === 'public') {
+      const publicMsg = { ...msg, senderId: myId, senderName: username };
       setPublicMessages(prev => {
-        const updated = [...prev, msg];
+        const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
         return updated;
       });
       fetch(POST_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(msg)
+        body: JSON.stringify(publicMsg)
       }).catch(() => { });
     } else {
-      const remotePeerId = peerEngine.connection?.peer || remoteUsername;
-      const privateImgMsg = {
-        ...msg,
-        isPrivate: true,
-        recipientId: remotePeerId
-      };
-
-      const p2pSent = peerEngine.sendMessage(privateImgMsg as any);
-      if (!p2pSent) {
-        fetch(POST_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(privateImgMsg)
-        }).catch(() => {});
-      }
-
+      sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, privateImgMsg];
-        if (remotePeerId) {
-          localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(updated));
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
+        const peerId = activePrivatePeerIdRef.current;
+        if (peerId) {
+          localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
         }
         return updated;
       });
-      peerEngine.sendMessage({ id: uuidv4(), senderId: myId, senderName: username, type: 'typing_stop', timestamp: Date.now() } as any);
+      sendPrivateMessage({ id: uuidv4(), type: 'typing_stop' });
       sentSound.play().catch(() => { });
     }
 
@@ -3276,8 +3255,14 @@ export default function App() {
                         </span>
                       )}
                       {isMine && viewMode === 'private' && (
-                        <span className={`msg-status ${msg.status === 'read' ? 'msg-read' : ''}`}>
-                          {msg.status === 'read' ? <CheckCheck size={14} /> : <CheckCheck size={14} opacity={0.5} />}
+                        <span className={`msg-status ${msg.status === 'read' ? 'msg-read' : ''}`} style={{ marginLeft: '4px', display: 'inline-flex', alignItems: 'center' }}>
+                          {msg.status === 'sent' ? (
+                            <Check size={14} opacity={0.6} />
+                          ) : msg.status === 'delivered' ? (
+                            <CheckCheck size={14} opacity={0.6} />
+                          ) : (
+                            <CheckCheck size={14} className="msg-read" />
+                          )}
                         </span>
                       )}
                     </div>
@@ -3286,11 +3271,16 @@ export default function App() {
               })}
 
               {remoteTyping && viewMode === 'private' && (
-                <div className="message-wrapper msg-received" style={{ opacity: 0.7 }}>
-                  <div className="message-bubble" style={{ padding: '0.4rem 1rem', display: 'flex', gap: '4px' }}>
-                    <span className="status-dot"></span>
-                    <span className="status-dot" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="status-dot" style={{ animationDelay: '0.4s' }}></span>
+                <div className="message-wrapper msg-received" style={{ opacity: 0.9, marginBottom: '8px' }}>
+                  <div className="message-bubble" style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--panel-bg)', borderRadius: '16px', border: '1px solid var(--panel-border)' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>
+                      {remoteUsername} is typing
+                    </span>
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                      <span className="status-dot"></span>
+                      <span className="status-dot" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="status-dot" style={{ animationDelay: '0.4s' }}></span>
+                    </div>
                   </div>
                 </div>
               )}
