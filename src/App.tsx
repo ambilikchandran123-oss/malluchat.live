@@ -42,6 +42,23 @@ const GoogleAdMessage = () => {
 
 
 
+export const isPublicChatMessage = (m: any): boolean => {
+  if (!m) return false;
+  if (m.isPrivate || m.recipientId) return false;
+  if (['public-invite', 'accept', 'decline', 'typing_start', 'typing_stop', 'read', 'delivered', 'match_searching', 'random_match_handshake'].includes(m.type)) {
+    return false;
+  }
+  if (!['text', 'voice', 'gif', 'image', 'ad'].includes(m.type)) {
+    return false;
+  }
+  if (m.type === 'text' && (!m.text || !m.text.trim())) return false;
+  if (m.type === 'image' && !m.imageUrl && !m.thumbUrl) return false;
+  if (m.type === 'voice' && !m.voiceBlob) return false;
+  if (m.type === 'gif' && !m.gifUrl) return false;
+
+  return true;
+};
+
 const clearOldMessages = () => {
   const now = Date.now();
   const limit = 86400000; // 24 hours in milliseconds
@@ -51,7 +68,7 @@ const clearOldMessages = () => {
   if (publicStored) {
     try {
       const parsed = JSON.parse(publicStored);
-      const filtered = parsed.filter((m: any) => now - m.timestamp < limit);
+      const filtered = parsed.filter((m: any) => isPublicChatMessage(m) && now - m.timestamp < limit);
       localStorage.setItem('malluchat_public_messages', JSON.stringify(filtered));
     } catch (e) {
       localStorage.removeItem('malluchat_public_messages');
@@ -361,7 +378,7 @@ export default function App() {
       try {
         const parsed = JSON.parse(stored);
         const now = Date.now();
-        return parsed.filter((m: any) => m && m.type !== 'match_searching' && now - m.timestamp < 86400000);
+        return parsed.filter((m: any) => isPublicChatMessage(m) && now - m.timestamp < 86400000);
       } catch (e) {
         return [];
       }
@@ -1121,12 +1138,12 @@ export default function App() {
         }
 
         if (messages.length > 0) {
-          const chatOnlyMessages = messages.filter(m => m && m.type !== 'match_searching');
+          const chatOnlyMessages = messages.filter(m => isPublicChatMessage(m));
           if (chatOnlyMessages.length > 0) {
             setPublicMessages(prev => {
               const newMsgs = chatOnlyMessages.filter(fm => !prev.some(pm => pm.id === fm.id));
               if (newMsgs.length === 0) return prev;
-              const updated = [...prev, ...newMsgs].sort((a, b) => a.timestamp - b.timestamp);
+              const updated = [...prev, ...newMsgs].filter(isPublicChatMessage).sort((a, b) => a.timestamp - b.timestamp);
               localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
               return updated;
             });
@@ -1167,12 +1184,14 @@ export default function App() {
                 return;
               }
 
-              setPublicMessages(prev => {
-                if (prev.find(m => m.id === payload.id)) return prev;
-                const updated = [...prev, payload];
-                localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
-                return updated;
-              });
+              if (isPublicChatMessage(payload)) {
+                setPublicMessages(prev => {
+                  if (prev.find(m => m.id === payload.id)) return prev;
+                  const updated = [...prev, payload].filter(isPublicChatMessage);
+                  localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
+                  return updated;
+                });
+              }
             } catch (e) { }
           }
         } catch (err) { }
@@ -3130,6 +3149,7 @@ export default function App() {
               </div>
 
               {(viewMode === 'private' ? messages : publicMessages).map((msg, idx) => {
+                if (viewMode === 'public' && !isPublicChatMessage(msg)) return null;
                 if (msg.type === 'system') {
                   return <div key={idx} className="system-message">{msg.text}</div>;
                 }
