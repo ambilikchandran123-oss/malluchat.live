@@ -15,7 +15,10 @@ const routes = [
   'mallu-chatting-app',
   'mallu-telegram-chatting',
   'telegram-alternative-group-chat',
-  'malayalam-chat-online'
+  'malayalam-chat-online',
+  'strangers-mallu-chat',
+  'mallu-chatting-website',
+  'mallu-random-video-call'
 ];
 
 const distDir = path.join(__dirname, 'dist');

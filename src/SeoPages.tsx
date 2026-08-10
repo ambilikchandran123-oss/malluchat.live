@@ -273,4 +273,109 @@ export const MalluFreeVideoCallPage = () => {
     );
 };
 
+// 6. Strangers Mallu Chat Page
+export const StrangersMalluChatPage = () => {
+    useMeta(
+        'Strangers Mallu Chat - Chat & Video Call Strangers Online | MalluChat',
+        'Connect with strangers on Mallu Chat! Free anonymous strangers Mallu chat, random Mallu video call, and instant Malayalam chat with strangers without registration.',
+        '/strangers-mallu-chat'
+    );
+
+    return (
+        <div style={containerStyle} className="glass">
+            <Header title="Strangers Mallu Chat & Video Call" />
+            <CallToAction />
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                Want to meet new people through <strong>strangers mallu chat</strong>? MalluChat is the #1 platform designed for Malayalees to chat, voice call, and video call with strangers anonymously across Kerala, GCC, and worldwide.
+            </p>
+
+            <Section title="Why MalluChat is the Best Strangers Mallu Chat Platform">
+                <p>Chatting with strangers safely is our top priority. Unlike insecure random chat rooms, MalluChat offers:</p>
+                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li><strong>100% Anonymous Stranger Chat:</strong> No phone numbers, Facebook logins, or personal details required.</li>
+                    <li><strong>Instant Peer-to-Peer Calls:</strong> Start a <strong>strangers mallu video call</strong> directly in your browser with high-quality WebRTC audio and video.</li>
+                    <li><strong>Global Malayalee Community:</strong> Connect with Malayalam speakers from Kochi, Trivandrum, Dubai, Riyadh, London, and New York.</li>
+                    <li><strong>Safe Moderation &amp; Reporting:</strong> Built-in safety features to ensure a respectful environment for everyone.</li>
+                </ul>
+            </Section>
+
+            <Section title="How to Start Stranger Chatting in Malayalam">
+                <p>Connecting with strangers on MalluChat takes only 3 simple steps:</p>
+                <ol style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li>Click <strong>Start Chatting Now</strong> to enter the live chat room.</li>
+                    <li>Pick any random nickname of your choice.</li>
+                    <li>Jump into the global room or click <strong>Random Match</strong> for a 1-on-1 private video call with a stranger.</li>
+                </ol>
+            </Section>
+        </div>
+    );
+};
+
+// 7. Mallu Chatting Website Page
+export const MalluChattingWebsitePage = () => {
+    useMeta(
+        'Mallu Chatting Website - #1 Free Malayalam Chat Site & Video Call | MalluChat',
+        'Looking for the top Mallu chatting website? MalluChat is the best free Malayalam chat site for live chat, free video calling, and anonymous Malayali connections.',
+        '/mallu-chatting-website'
+    );
+
+    return (
+        <div style={containerStyle} className="glass">
+            <Header title="Mallu Chatting Website & Chat Site" />
+            <CallToAction />
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                Searching for a reliable <strong>mallu chatting website</strong> to meet fellow Malayalees? MalluChat.live is Kerala&apos;s leading web-based chatting site offering real-time public room discussions, private WebRTC chat, and 100% free video calling.
+            </p>
+
+            <Section title="Features of Our Mallu Chatting Website">
+                <p>What makes MalluChat stand out among all online Malayalam chat sites:</p>
+                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li><strong>Zero App Download Required:</strong> Works seamlessly on any mobile or desktop web browser (Chrome, Safari, Firefox, Edge).</li>
+                    <li><strong>Free Mallu Video Calling Website:</strong> High quality P2P video stream with no time limits or coin paywalls.</li>
+                    <li><strong>Live Public Lobby:</strong> Interactive World Chat to discuss movies, news, food, and daily life in Malayalam/Manglish.</li>
+                    <li><strong>Privacy First Architecture:</strong> Direct P2P technology ensures zero chat logs or personal data storage.</li>
+                </ul>
+            </Section>
+
+            <Section title="Why Malayalees Prefer MalluChat Site">
+                <p>Traditional chat sites are often outdated, laggy, or full of ads. MalluChat provides a modern glassmorphism design, fast servers, and instant connectivity for all Kerala users worldwide.</p>
+            </Section>
+        </div>
+    );
+};
+
+// 8. Mallu Random Video Call Page
+export const MalluRandomVideoCallPage = () => {
+    useMeta(
+        'Mallu Random Video Call & Roundam Calling - Live Malayalam Video Chat | MalluChat',
+        'Experience instant Mallu random video call & roundam chating calling video calling online. Connect live with random Malayalee strangers for free HD video chat.',
+        '/mallu-random-video-call'
+    );
+
+    return (
+        <div style={containerStyle} className="glass">
+            <Header title="Mallu Random Video Call & Calling" />
+            <CallToAction />
+            <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
+                Enjoy live <strong>mallu random video call</strong> and <strong>mallu roundam chating calling video calling</strong> online! Connect face-to-face with random Malayalam-speaking friends across the globe instantly.
+            </p>
+
+            <Section title="Best Mallu Random Calling & Video Chat Features">
+                <p>MalluChat offers state-of-the-art random matching for Kerala users:</p>
+                <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+                    <li><strong>One-Click Random Matching:</strong> Tap a single button to connect with an active online Malayali user.</li>
+                    <li><strong>HD Video &amp; Low Latency Audio:</strong> Powered by WebRTC technology for ultra-smooth video calling.</li>
+                    <li><strong>100% Free Unlimited Video Chat:</strong> No coin purchases, subscriptions, or hidden charges.</li>
+                    <li><strong>Instant Skip &amp; Next Match:</strong> Easily switch to the next available online stranger anytime.</li>
+                </ul>
+            </Section>
+
+            <Section title="Start Your Mallu Random Video Chat Now">
+                <p>No waiting rooms or complex setups. Enter the platform, pick a nickname, and tap <strong>Random Video Call</strong> to talk live with random Mallus right now!</p>
+            </Section>
+        </div>
+    );
+};
+
+
 

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { PrivacyPage, TermsPage, AUPPage, DisclaimerPage } from './LegalPages.tsx'
-import { MalluChattingAppPage, MalluTelegramChattingPage, TelegramAlternativeGroupChatPage, MalayalamChatOnlinePage, MalluFreeVideoCallPage } from './SeoPages.tsx'
+import { MalluChattingAppPage, MalluTelegramChattingPage, TelegramAlternativeGroupChatPage, MalayalamChatOnlinePage, MalluFreeVideoCallPage, StrangersMalluChatPage, MalluChattingWebsitePage, MalluRandomVideoCallPage } from './SeoPages.tsx'
 const path = window.location.pathname;
 const isBaseRoute = path === '/' || path.endsWith('/malluchat/') || path.endsWith('/malluchat');
 let ComponentToRender = App;
@@ -17,6 +17,9 @@ if (path.includes('/mallu-telegram-chatting')) ComponentToRender = MalluTelegram
 if (path.includes('/telegram-alternative-group-chat')) ComponentToRender = TelegramAlternativeGroupChatPage;
 if (path.includes('/malayalam-chat-online')) ComponentToRender = MalayalamChatOnlinePage;
 if (path.includes('/mallu-free-video-call')) ComponentToRender = MalluFreeVideoCallPage;
+if (path.includes('/strangers-mallu-chat')) ComponentToRender = StrangersMalluChatPage;
+if (path.includes('/mallu-chatting-website')) ComponentToRender = MalluChattingWebsitePage;
+if (path.includes('/mallu-random-video-call')) ComponentToRender = MalluRandomVideoCallPage;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
