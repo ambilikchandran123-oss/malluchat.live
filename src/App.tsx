@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2 } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -629,8 +629,14 @@ export default function App() {
   const matchConnectionTimeoutRef = useRef<any>(null);
   const privateConnectionTimeoutRef = useRef<any>(null);
 
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const publicMessagesEndRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef<boolean>(true);
+  const prevMessagesLenRef = useRef<number>(0);
+  const prevPublicMessagesLenRef = useRef<number>(0);
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState<boolean>(false);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
   const handleLeavePrivateChatRef = useRef<() => void>(() => {});
   const activeCallingUserRef = useRef(activeCallingUser);
   activeCallingUserRef.current = activeCallingUser;
@@ -1537,13 +1543,65 @@ export default function App() {
     return () => clearInterval(interval);
   }, [isRecording]);
 
+  const scrollToBottom = (force: boolean = false) => {
+    if (force) {
+      isNearBottomRef.current = true;
+      setUnreadCount(0);
+      setShowScrollBottomBtn(false);
+    }
+    const targetRef = viewMode === 'public' ? publicMessagesEndRef : messagesEndRef;
+    targetRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleChatScroll = () => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isAtBottom = distanceFromBottom <= 120;
+    isNearBottomRef.current = isAtBottom;
+    setShowScrollBottomBtn(!isAtBottom);
+    if (isAtBottom) {
+      setUnreadCount(0);
+    }
+  };
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (viewMode !== 'private') return;
+    const isNewMessage = messages.length > prevMessagesLenRef.current;
+    prevMessagesLenRef.current = messages.length;
+
+    if (isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setUnreadCount(0);
+    } else if (isNewMessage) {
+      setUnreadCount(prev => prev + 1);
+    }
   }, [messages, remoteTyping]);
 
   useEffect(() => {
-    publicMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (viewMode !== 'public') return;
+    const isNewMessage = publicMessages.length > prevPublicMessagesLenRef.current;
+    prevPublicMessagesLenRef.current = publicMessages.length;
+
+    if (isNearBottomRef.current) {
+      publicMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setUnreadCount(0);
+    } else if (isNewMessage) {
+      setUnreadCount(prev => prev + 1);
+    }
   }, [publicMessages]);
+
+  useEffect(() => {
+    isNearBottomRef.current = true;
+    setUnreadCount(0);
+    setShowScrollBottomBtn(false);
+    prevMessagesLenRef.current = messages.length;
+    prevPublicMessagesLenRef.current = publicMessages.length;
+    const timer = setTimeout(() => {
+      scrollToBottom(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [viewMode, status]);
 
   useEffect(() => {
     const handleHash = () => {
@@ -1961,6 +2019,7 @@ export default function App() {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    scrollToBottom(true);
   };
 
   const handleSendPublic = () => {
@@ -1996,6 +2055,7 @@ export default function App() {
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur();
     }
+    scrollToBottom(true);
   };
 
   const handleSendGif = (gifUrl: string, title?: string) => {
@@ -2043,6 +2103,7 @@ export default function App() {
     }
 
     setReplyingTo(null);
+    scrollToBottom(true);
   };
 
   const handleSendImage = (imageUrl: string, title?: string, thumbUrl?: string) => {
@@ -2091,6 +2152,7 @@ export default function App() {
     }
 
     setReplyingTo(null);
+    scrollToBottom(true);
   };
 
   const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3178,7 +3240,7 @@ export default function App() {
 
           {/* Chat Messages */}
           {(viewMode === 'public' || status === 'connected') && (
-            <div className="chat-messages" style={{ paddingBottom: '10px' }}>
+            <div ref={chatContainerRef} className="chat-messages" onScroll={handleChatScroll} style={{ paddingBottom: '10px' }}>
               <div className="system-message">
                 {viewMode === 'public'
                   ? 'Welcome to Mallu Public Chat. Anyone can see messages here.'
@@ -3344,6 +3406,22 @@ export default function App() {
 
               <div ref={viewMode === 'public' ? publicMessagesEndRef : messagesEndRef} />
             </div>
+          )}
+
+          {/* Floating Scroll to Bottom button */}
+          {showScrollBottomBtn && (viewMode === 'public' || status === 'connected') && (
+            <button
+              className="scroll-bottom-btn"
+              onClick={() => scrollToBottom(true)}
+              title="Scroll to bottom"
+            >
+              <ChevronDown size={20} />
+              {unreadCount > 0 && (
+                <span className="scroll-unread-badge">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
           )}
 
           {/* Chat Input */}
