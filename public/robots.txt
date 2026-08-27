@@ -1,6 +1,12 @@
 User-agent: *
 Allow: /
 
+User-agent: Bingbot
+Allow: /
+
+User-agent: MSNBot
+Allow: /
+
 User-agent: GPTBot
 Allow: /
 
