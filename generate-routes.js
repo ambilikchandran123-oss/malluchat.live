@@ -7,6 +7,14 @@ const __dirname = path.dirname(__filename);
 
 // Define metadata for all sub-routes to optimize SEO and prevent duplicate canonical penalties
 const routeMetadata = {
+  'mallu-chat-live': {
+    title: 'Mallu Chat Live - Instant Anonymous Kerala Chat Rooms & Video Call | MalluChat',
+    description: 'Experience Mallu Chat Live on MalluChat.live. Real-time live Malayalam chat rooms, instant stranger video calls, and zero registration.'
+  },
+  'malayalam-chatting-website': {
+    title: 'Malayalam Chatting Website - Free Kerala Online Chat & Video Call | MalluChat',
+    description: 'Top-rated Malayalam chatting website for free Kerala chat rooms, stranger video calling, and live online Malayalam chat without logins.'
+  },
   'strangers-mallu-chat': {
     title: 'Mallu Stranger Chat Online - Free Anonymous Malayalam Chat | MalluChat',
     description: 'Connect instantly on Mallu Stranger Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
