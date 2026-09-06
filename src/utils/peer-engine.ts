@@ -1,6 +1,6 @@
 import Peer, { type DataConnection, type MediaConnection } from 'peerjs';
 
-export type MessageType = 'text' | 'voice' | 'typing_start' | 'typing_stop' | 'reaction' | 'read' | 'public_text' | 'ad' | 'gif' | 'image';
+export type MessageType = 'text' | 'voice' | 'typing_start' | 'typing_stop' | 'reaction' | 'read' | 'public_text' | 'ad' | 'gif' | 'image' | 'call_end' | 'camera_status' | 'decline' | 'accept' | 'call_invite' | 'call_cancel' | 'call_decline' | 'call_accept';
 
 export type IncomingMessage = {
     id: string;
@@ -153,11 +153,18 @@ export class PeerEngine {
     }
 
     sendDeclineRequest(remoteId: string, metadata?: any) {
-        if (!this.peer) return;
-        const conn = this.peer.connect(remoteId, { metadata });
-        conn.on('open', () => {
-            setTimeout(() => conn.close(), 1000);
-        });
+        if (!this.peer || !remoteId) return;
+        try {
+            const conn = this.peer.connect(remoteId, { metadata });
+            conn.on('open', () => {
+                setTimeout(() => {
+                    try { conn.close(); } catch (_) {}
+                }, 1000);
+            });
+            conn.on('error', () => {});
+        } catch (e) {
+            console.warn("sendDeclineRequest error:", e);
+        }
     }
 
     setupConnection(conn: DataConnection) {

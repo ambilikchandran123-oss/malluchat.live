@@ -15,8 +15,10 @@ const sentSound = new Audio('/sent.mp3');
 const receivedSound = new Audio('/received.mp3');
 
 const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BACKEND_URL = isDev ? 'http://localhost:3000' : 'https://ntfy.sh/malluchat_global_room_v4';
-const WS_URL = isDev ? 'ws://localhost:3000/ws' : 'wss://ntfy.sh/malluchat_global_room_v4/ws';
+const localOrigin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:3000';
+const localWs = typeof window !== 'undefined' ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws` : 'ws://localhost:3000/ws';
+const BACKEND_URL = isDev ? localOrigin : 'https://ntfy.sh/malluchat_global_room_v4';
+const WS_URL = isDev ? localWs : 'wss://ntfy.sh/malluchat_global_room_v4/ws';
 const POST_URL = isDev ? `${BACKEND_URL}/api/messages` : BACKEND_URL;
 
 const GoogleAdMessage = () => {
@@ -347,6 +349,8 @@ export default function App() {
   const [showQrCode, setShowQrCode] = useState<boolean>(false);
   const [currentTxnId, setCurrentTxnId] = useState<string>('');
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
+  const ringingTimeoutRef = useRef<any>(null);
+  ringingTimeoutRef.current = ringingTimeout;
   const [demoUsers, setDemoUsers] = useState<any[]>(DEMO_PROFILES);
 
   const userLocationText = useMemo(() => {
@@ -438,9 +442,11 @@ export default function App() {
   const statusRef = useRef(status);
   statusRef.current = status;
   const isCancelingVoiceRef = useRef<boolean>(false);
+  const handleEndCallRef = useRef<(stopTracks?: boolean) => void>(() => {});
+  const handleCancelCallRef = useRef<() => void>(() => {});
 
   const sendPrivateMessage = (msgPayload: any) => {
-    const targetPeerId = activePrivatePeerIdRef.current || peerEngine.connection?.peer;
+    const targetPeerId = msgPayload.recipientId || activePrivatePeerIdRef.current || peerEngine.connection?.peer;
     if (!targetPeerId) return false;
 
     const fullMsg = {
@@ -465,7 +471,7 @@ export default function App() {
 
   const processPrivatePayload = (msg: any) => {
     if (msg.senderId && msg.senderId !== myIdRef.current) {
-      if (!activePrivatePeerIdRef.current) {
+      if (!activePrivatePeerIdRef.current && msg.type !== 'call_decline' && msg.type !== 'decline' && msg.type !== 'call_end') {
         setActivePrivatePeerId(msg.senderId);
       }
     }
@@ -479,7 +485,7 @@ export default function App() {
         clearTimeout(privateConnectionTimeoutRef.current);
         privateConnectionTimeoutRef.current = null;
       }
-      setRemoteUsername(msg.senderName);
+      setRemoteUsername(msg.senderName || 'User');
       setStatus('connected');
       if (msg.senderId) {
         setActivePrivatePeerId(msg.senderId);
@@ -491,16 +497,34 @@ export default function App() {
         clearTimeout(privateConnectionTimeoutRef.current);
         privateConnectionTimeoutRef.current = null;
       }
-      alert(`${msg.senderName} declined your chat request.`);
+      alert(`${msg.senderName || 'The user'} declined your chat request.`);
       setViewMode('public');
       setStatus('disconnected');
       setActivePrivatePeerId('');
       return;
     }
+    if (msg.type === 'chat_leave') {
+      if (viewModeRef.current === 'private') {
+        setStatus('disconnected');
+        alert(`${msg.senderName || 'The other user'} has left the private chat.`);
+        setViewMode('public');
+      }
+      return;
+    }
     if (msg.type === 'call_invite') {
+      if (inCallRef.current) {
+        // Automatically reply decline if user is currently already in a call
+        sendPrivateMessage({
+          id: uuidv4(),
+          type: 'call_decline',
+          recipientId: msg.senderId,
+          senderName: usernameRef.current || 'User'
+        });
+        return;
+      }
       setIncomingCallRequest({
         fromId: msg.senderId,
-        fromName: msg.senderName,
+        fromName: msg.senderName || 'User',
         isVideo: msg.text === 'video'
       });
       ringtone.start(true);
@@ -514,13 +538,33 @@ export default function App() {
     }
     if (msg.type === 'call_decline') {
       ringtone.stop();
+      if (ringingTimeoutRef.current) {
+        clearTimeout(ringingTimeoutRef.current);
+        ringingTimeoutRef.current = null;
+      }
+      handleEndCallRef.current(true);
       setActiveCallingUser(null);
-      alert(`${msg.senderName} declined the call.`);
+      alert(`${msg.senderName || 'The other user'} declined the call.`);
+      return;
+    }
+    if (msg.type === 'call_end') {
+      ringtone.stop();
+      handleEndCallRef.current(true);
+      return;
+    }
+    if (msg.type === 'camera_status') {
+      setRemoteCameraStatus(msg.text === 'on');
       return;
     }
     if (msg.type === 'call_accept') {
       ringtone.stop();
+      if (ringingTimeoutRef.current) {
+        clearTimeout(ringingTimeoutRef.current);
+        ringingTimeoutRef.current = null;
+      }
       const isVideo = activeCallingUserRef.current?.isVideo || false;
+      setIsCameraOff(!isVideo);
+      setRemoteCameraStatus(isVideo);
 
       if (peerEngine.localStream) {
         const call = peerEngine.startCall(
@@ -533,8 +577,45 @@ export default function App() {
           { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
         );
         if (call) {
+          call.on('close', () => {
+            handleEndCallRef.current(true);
+          });
+          peerEngine.callConnection = call;
           setInCall(true);
         }
+      } else {
+        navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })
+          .then((stream) => {
+            if (!isVideo) {
+              const pTrack = createPlaceholderVideoTrack();
+              placeholderVideoTrackRef.current = pTrack;
+              stream.addTrack(pTrack);
+            }
+            peerEngine.localStream = stream;
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = stream;
+            }
+            const call = peerEngine.startCall(
+              msg.senderId,
+              stream,
+              (rStream) => {
+                rStream.getTracks().forEach(t => { t.enabled = true; });
+                setRemoteStream(rStream);
+              },
+              { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
+            );
+            if (call) {
+              call.on('close', () => {
+                handleEndCallRef.current(true);
+              });
+              peerEngine.callConnection = call;
+              setInCall(true);
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to acquire stream on call_accept:", err);
+            handleCancelCallRef.current();
+          });
       }
       return;
     }
@@ -819,6 +900,16 @@ export default function App() {
       clearTimeout(matchConnectionTimeoutRef.current);
       matchConnectionTimeoutRef.current = null;
     }
+
+    const remotePeerId = activeCallingUserRef.current?.id || activePrivatePeerIdRef.current || peerEngine.connection?.peer;
+    if (remotePeerId && !remotePeerId.startsWith('demo-') && !remotePeerId.startsWith('dummy-')) {
+      sendPrivateMessage({
+        id: uuidv4(),
+        type: 'call_end',
+        recipientId: remotePeerId
+      });
+    }
+
     peerEngine.endCall(stopTracks);
     setInCall(false);
     setActiveCallingUser(null);
@@ -840,12 +931,23 @@ export default function App() {
     }
   };
 
+  handleEndCallRef.current = handleEndCall;
+
   const handleLeavePrivateChat = () => {
     ringtone.stop();
     setIncomingCallRequest(null);
     if (privateConnectionTimeoutRef.current) {
       clearTimeout(privateConnectionTimeoutRef.current);
       privateConnectionTimeoutRef.current = null;
+    }
+    const targetPeerId = activePrivatePeerIdRef.current || peerEngine.connection?.peer;
+    if (targetPeerId) {
+      sendPrivateMessage({
+        id: uuidv4(),
+        type: 'chat_leave',
+        recipientId: targetPeerId,
+        senderName: usernameRef.current || 'User'
+      });
     }
     peerEngine.disconnectChat();
     setInCall(false);
@@ -859,6 +961,7 @@ export default function App() {
       preAcquiredStreamRef.current = null;
     }
     setStatus('disconnected');
+    setActivePrivatePeerId('');
     setMessages([]);
     setViewMode('public');
   };
@@ -971,14 +1074,19 @@ export default function App() {
 
   const handleCancelCall = () => {
     ringtone.stop();
-    if (ringingTimeout) clearTimeout(ringingTimeout);
+    if (ringingTimeoutRef.current) {
+      clearTimeout(ringingTimeoutRef.current);
+      ringingTimeoutRef.current = null;
+    }
     setRingingTimeout(null);
 
     // If it's a real private chat call, send a cancel signal
-    if (activeCallingUser && !activeCallingUser.id?.startsWith('demo-')) {
+    const targetPeerId = activeCallingUser?.id || activePrivatePeerIdRef.current;
+    if (targetPeerId && !targetPeerId.startsWith('demo-') && !targetPeerId.startsWith('dummy-')) {
       sendPrivateMessage({
         id: uuidv4(),
-        type: 'call_cancel'
+        type: 'call_cancel',
+        recipientId: targetPeerId
       });
     }
 
@@ -997,11 +1105,15 @@ export default function App() {
     isMatchInitiatorRef.current = false;
   };
 
+  handleCancelCallRef.current = handleCancelCall;
+
   const handleAcceptCall = async () => {
     if (!incomingCallRequest) return;
     ringtone.stop();
 
     const isVideo = incomingCallRequest.isVideo;
+    const callerId = incomingCallRequest.fromId;
+    const callerName = incomingCallRequest.fromName;
 
     setIncomingCallRequest(null);
 
@@ -1015,19 +1127,39 @@ export default function App() {
       }
 
       peerEngine.localStream = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      setActiveCallingUser({
+        id: callerId,
+        name: callerName,
+        avatar: '👤',
+        isVideo: isVideo
+      });
+      setActivePrivatePeerId(callerId);
+      setRemoteUsername(callerName);
+      setIsCameraOff(!isVideo);
+      setRemoteCameraStatus(isVideo);
       setInCall(true);
 
       // Send accept signal back to initiator
       sendPrivateMessage({
         id: uuidv4(),
-        type: 'call_accept'
+        type: 'call_accept',
+        recipientId: callerId,
+        senderId: myId,
+        senderName: username
       });
     } catch (err) {
       alert("Permission denied. Could not access camera or microphone.");
       // Send decline to remote peer so they aren't stuck calling forever
       sendPrivateMessage({
         id: uuidv4(),
-        type: 'call_decline'
+        type: 'call_decline',
+        recipientId: callerId,
+        senderId: myId,
+        senderName: username
       });
     }
   };
@@ -1036,11 +1168,15 @@ export default function App() {
     if (!incomingCallRequest) return;
     ringtone.stop();
 
+    const callerId = incomingCallRequest.fromId;
     setIncomingCallRequest(null);
 
     sendPrivateMessage({
       id: uuidv4(),
-      type: 'call_decline'
+      type: 'call_decline',
+      recipientId: callerId,
+      senderId: myId,
+      senderName: username
     });
   };
 
@@ -1251,9 +1387,7 @@ export default function App() {
         (err) => {
           console.error("PeerJS Error:", err);
           if (err?.type === 'peer-unavailable') {
-            alert("Connection Failed: The user has gone offline or refreshed their page.");
-            setViewMode('public');
-            setStatus('disconnected');
+            console.warn("PeerJS peer-unavailable; falling back to server relay channel");
           }
         }
       );
@@ -1375,71 +1509,6 @@ export default function App() {
     };
 
     peerEngine.onMessage = (msg: any) => {
-      if (msg.type === 'call_invite') {
-        setIncomingCallRequest({
-          fromId: msg.senderId,
-          fromName: msg.senderName,
-          isVideo: msg.text === 'video'
-        });
-        ringtone.start(true);
-        return;
-      }
-      if (msg.type === 'call_cancel') {
-        ringtone.stop();
-        setIncomingCallRequest(null);
-        return;
-      }
-      if (msg.type === 'call_decline') {
-        ringtone.stop();
-        setActiveCallingUser(null);
-        alert(`${msg.senderName} declined the call.`);
-        return;
-      }
-      if (msg.type === 'call_accept') {
-        ringtone.stop();
-        const isVideo = activeCallingUserRef.current?.isVideo || false;
-        
-        if (peerEngine.localStream) {
-          const call = peerEngine.startCall(
-            msg.senderId,
-            peerEngine.localStream,
-            (rStream) => {
-              setRemoteStream(rStream);
-            },
-            { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
-          );
-          if (call) {
-            setInCall(true);
-          }
-        } else {
-          navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })
-            .then((stream) => {
-              if (!isVideo) {
-                const pTrack = createPlaceholderVideoTrack();
-                placeholderVideoTrackRef.current = pTrack;
-                stream.addTrack(pTrack);
-              }
-              peerEngine.localStream = stream;
-              const call = peerEngine.startCall(
-                msg.senderId,
-                stream,
-                (rStream) => {
-                  setRemoteStream(rStream);
-                },
-                { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
-              );
-              if (call) {
-                setInCall(true);
-              }
-            })
-            .catch(() => {
-              alert("Microphone permission required for calls.");
-              handleCancelCall();
-            });
-        }
-        return;
-      }
-      
       processPrivatePayload(msg);
     };
 
@@ -1447,9 +1516,17 @@ export default function App() {
       const callType = call.metadata?.callType;
       const isVideo = callType === 'private-video';
 
+      setIsCameraOff(!isVideo);
+      setRemoteCameraStatus(isVideo);
+
+      call.on('close', () => {
+        handleEndCallRef.current(true);
+      });
+
       if (peerEngine.localStream) {
         // Automatically answer since the user already accepted via the incoming call request UI modal!
         call.on('stream', (rStream) => {
+          rStream.getTracks().forEach(t => { t.enabled = true; });
           setRemoteStream(rStream);
         });
         call.answer(peerEngine.localStream);
@@ -1465,18 +1542,26 @@ export default function App() {
               stream.addTrack(pTrack);
             }
 
+            peerEngine.localStream = stream;
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = stream;
+            }
+
             call.on('stream', (rStream) => {
+              rStream.getTracks().forEach(t => { t.enabled = true; });
               setRemoteStream(rStream);
             });
             call.answer(stream);
             peerEngine.callConnection = call;
-            peerEngine.localStream = stream;
             setInCall(true);
           }).catch(() => {
             alert("Permission denied. Could not start media devices.");
+            call.close();
+            handleEndCallRef.current(true);
           });
         } else {
           call.close();
+          handleEndCallRef.current(true);
         }
       }
     };
@@ -1639,7 +1724,7 @@ export default function App() {
       localVideoRef.current.srcObject = peerEngine.localStream;
       localVideoRef.current.play().catch(e => console.warn("Local video play catch:", e));
     }
-  }, [remoteStream, inCall, viewMode]);
+  }, [remoteStream, inCall, viewMode, remoteCameraStatus, isCameraOff]);
 
   const handleStartTyping = () => {
     if (viewMode !== 'private' || status !== 'connected') return;
@@ -1960,7 +2045,8 @@ export default function App() {
 
     sendPrivateMessage({
       id: uuidv4(),
-      type: 'public-invite'
+      type: 'public-invite',
+      recipientId: remoteId
     });
 
     setRemoteUsername(remoteName);
@@ -1969,11 +2055,13 @@ export default function App() {
 
     if (privateConnectionTimeoutRef.current) clearTimeout(privateConnectionTimeoutRef.current);
     privateConnectionTimeoutRef.current = setTimeout(() => {
-      // Transition to connected state so user can send via server relay if WebRTC P2P direct fails
       if (statusRef.current === 'connecting') {
-        setStatus('connected');
+        alert("The user did not respond to your chat request.");
+        setStatus('disconnected');
+        setViewMode('public');
+        setActivePrivatePeerId('');
       }
-    }, 3000);
+    }, 25000);
   };
 
   const handleSend = () => {
@@ -2029,7 +2117,7 @@ export default function App() {
 
     const msg = {
       id: uuidv4(),
-      senderId: myId,
+      senderId: myId || myIdRef.current || peerEngine.id || (typeof window !== 'undefined' ? localStorage.getItem('malluchat_stable_peer_id') : '') || '',
       senderName: username,
       type: 'text',
       text: publicInput,
@@ -2245,6 +2333,12 @@ export default function App() {
       }
 
       peerEngine.localStream = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      setIsCameraOff(!isVideo);
+      setRemoteCameraStatus(isVideo);
 
       setActiveCallingUser({
         id: remoteId,
@@ -2256,18 +2350,20 @@ export default function App() {
       ringtone.start(true);
 
       // Auto-cancel call if unanswered after 25 seconds
-      if (ringingTimeout) clearTimeout(ringingTimeout);
+      if (ringingTimeoutRef.current) clearTimeout(ringingTimeoutRef.current);
       const timeout = setTimeout(() => {
         handleCancelCall();
         alert("Call unanswered.");
       }, 25000);
       setRingingTimeout(timeout);
+      ringingTimeoutRef.current = timeout;
 
       // Send call invite signal to remote peer via fallback relay
       sendPrivateMessage({
         id: uuidv4(),
         type: 'call_invite',
-        text: isVideo ? 'video' : 'voice'
+        text: isVideo ? 'video' : 'voice',
+        recipientId: remoteId
       });
     } catch (err) {
       alert("Microphone/Camera permission required for calls.");
@@ -2853,8 +2949,20 @@ export default function App() {
               <button
                 className="btn btn-secondary" style={{ flex: 1, margin: 0, padding: '0.6rem', fontSize: '0.9rem' }}
                 onClick={() => {
-                  incomingChatRequest.conn.close();
-                  peerEngine.sendDeclineRequest(incomingChatRequest.conn.peer, { type: 'decline', senderName: username });
+                  const senderPeerId = incomingChatRequest.conn?.peer || incomingChatRequest.metadata?.peerId;
+                  if (incomingChatRequest.conn) {
+                    try { incomingChatRequest.conn.close(); } catch (_) {}
+                  }
+                  if (senderPeerId) {
+                    peerEngine.sendDeclineRequest(senderPeerId, { type: 'decline', senderName: username });
+                    sendPrivateMessage({
+                      id: uuidv4(),
+                      type: 'decline',
+                      recipientId: senderPeerId,
+                      senderName: username,
+                      senderId: myId
+                    });
+                  }
                   setIncomingChatRequest(null);
                   setStatus('disconnected');
                 }}
@@ -2864,21 +2972,31 @@ export default function App() {
               <button
                 className="btn btn-primary" style={{ flex: 1, margin: 0, padding: '0.6rem', fontSize: '0.9rem' }}
                 onClick={() => {
-                  setRemoteUsername(incomingChatRequest.metadata?.senderName || 'User');
+                  const senderPeerId = incomingChatRequest.conn?.peer || incomingChatRequest.metadata?.peerId;
+                  const senderName = incomingChatRequest.metadata?.senderName || 'User';
+                  setRemoteUsername(senderName);
+                  if (senderPeerId) {
+                    setActivePrivatePeerId(senderPeerId);
+                  }
                   setViewMode('private');
                   setStatus('connected');
                   setIncomingChatRequest(null);
                   
+                  if (senderPeerId && (!peerEngine.connection || !peerEngine.connection.open || peerEngine.connection.peer !== senderPeerId)) {
+                    peerEngine.connectToPeer(senderPeerId, { senderName: username, type: 'accept' });
+                  }
+
                   // Send accept signal back to initiator
                   setTimeout(() => {
-                    peerEngine.sendMessage({
+                    sendPrivateMessage({
                       id: uuidv4(),
-                      senderId: peerEngine.id,
+                      senderId: myId,
                       senderName: usernameRef.current || 'User',
+                      recipientId: senderPeerId,
                       type: 'accept',
                       timestamp: Date.now()
-                    } as any);
-                  }, 200);
+                    });
+                  }, 100);
                 }}
               >
                 Accept
@@ -3048,9 +3166,11 @@ export default function App() {
                   <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'rgba(255,255,255,0.2)' : 'var(--primary)', color: isCameraOff ? 'white' : 'black' }} onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff} title="Toggle Camera">
                     {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
                   </button>
-                  <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
-                    <Shuffle size={28} />
-                  </button>
+                  {viewMode === 'random' && (
+                    <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
+                      <Shuffle size={28} />
+                    </button>
+                  )}
                   <button className="call-ctrl-btn end" onClick={() => handleEndCall()} title="End Call">
                     <PhoneOff size={28} />
                   </button>
@@ -3203,6 +3323,24 @@ export default function App() {
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                   {status === 'connecting' ? 'Waiting for them to accept your request...' : 'Send this exact code to your friend to securely connect.'}
                 </p>
+                {status === 'connecting' && (
+                  <button
+                    className="btn btn-secondary"
+                    style={{ width: 'auto', padding: '0.6rem 1.2rem', margin: '0 auto' }}
+                    onClick={() => {
+                      if (privateConnectionTimeoutRef.current) {
+                        clearTimeout(privateConnectionTimeoutRef.current);
+                        privateConnectionTimeoutRef.current = null;
+                      }
+                      peerEngine.disconnectChat();
+                      setStatus('disconnected');
+                      setActivePrivatePeerId('');
+                      setViewMode('public');
+                    }}
+                  >
+                    Cancel Request
+                  </button>
+                )}
                 {status !== 'connecting' && (
                   <div className="share-container">
                     <div className="share-link" style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '2px' }}>{myId || '...'}</div>
