@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -361,6 +361,9 @@ export default function App() {
   // Video Call States
   const [isCameraOff, setIsCameraOff] = useState<boolean>(true);
   const [callDuration, setCallDuration] = useState<number>(0);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [isSwappedVideo, setIsSwappedVideo] = useState<boolean>(false);
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
@@ -822,10 +825,10 @@ export default function App() {
 
 
 
-  // Call simulation duration effect
+  // Call duration timer effect (runs for both real peer and demo calls)
   useEffect(() => {
     let interval: any;
-    if (inCall && activeCallingUser && activeCallingUser.id?.startsWith('demo-')) {
+    if (inCall) {
       setCallDuration(0);
       interval = setInterval(() => {
         setCallDuration(prev => prev + 1);
@@ -836,7 +839,7 @@ export default function App() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [inCall, activeCallingUser]);
+  }, [inCall]);
 
   const formatCallTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -1055,6 +1058,62 @@ export default function App() {
       text: 'off',
       timestamp: Date.now()
     } as any);
+  };
+
+  const handleSwitchCamera = async () => {
+    const nextFacing = facingMode === 'user' ? 'environment' : 'user';
+    try {
+      let newStream: MediaStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { exact: nextFacing } },
+          audio: false
+        });
+      } catch {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: nextFacing },
+          audio: false
+        });
+      }
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      if (!newVideoTrack) return;
+
+      if (peerEngine.localStream) {
+        peerEngine.localStream.getVideoTracks().forEach(t => {
+          t.stop();
+          peerEngine.localStream?.removeTrack(t);
+        });
+        peerEngine.localStream.addTrack(newVideoTrack);
+      }
+
+      if (peerEngine.callConnection?.peerConnection) {
+        const senders = peerEngine.callConnection.peerConnection.getSenders();
+        const videoSender = senders.find(s => s.track?.kind === 'video');
+        if (videoSender) {
+          videoSender.replaceTrack(newVideoTrack);
+        }
+      }
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = peerEngine.localStream;
+      }
+
+      setFacingMode(nextFacing);
+      setIsCameraOff(false);
+    } catch (err) {
+      console.warn("Could not switch camera:", err);
+    }
+  };
+
+  const toggleSpeaker = () => {
+    setIsSpeakerMuted(prev => {
+      const next = !prev;
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.muted = next;
+      }
+      return next;
+    });
   };
 
   const handleSelectGenderFilter = (filter: 'female' | 'male' | 'all') => {
@@ -1716,15 +1775,17 @@ export default function App() {
         remoteAudioRef.current.play().catch(e => console.warn("Remote audio play catch:", e));
       }
       if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
+        const streamToAttach = isSwappedVideo ? (peerEngine.localStream || remoteStream) : remoteStream;
+        remoteVideoRef.current.srcObject = streamToAttach;
         remoteVideoRef.current.play().catch(e => console.warn("Remote video play catch:", e));
       }
     }
     if (peerEngine.localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = peerEngine.localStream;
+      const pipStream = isSwappedVideo ? remoteStream : peerEngine.localStream;
+      localVideoRef.current.srcObject = pipStream;
       localVideoRef.current.play().catch(e => console.warn("Local video play catch:", e));
     }
-  }, [remoteStream, inCall, viewMode, remoteCameraStatus, isCameraOff]);
+  }, [remoteStream, inCall, viewMode, remoteCameraStatus, isCameraOff, isSwappedVideo]);
 
   const handleStartTyping = () => {
     if (viewMode !== 'private' || status !== 'connected') return;
@@ -2402,44 +2463,7 @@ export default function App() {
   return (
     <main className="app-layout">
 
-      {/* Call Connecting Overlay */}
-      {activeCallingUser && !showPaywall && (
-        <div className="ring-overlay">
-          <div className="ring-radar">
-            <div className="radar-wave"></div>
-            <div className="radar-wave"></div>
-            <div className="radar-wave"></div>
-            <div className="ring-avatar">
-              {activeCallingUser.avatar}
-            </div>
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.2rem' }}>
-            Calling {activeCallingUser.name}...
-          </h2>
-          {activeCallingUser.locationText && (
-            <div style={{ color: '#10b981', fontSize: '0.95rem', marginBottom: '0.8rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <MapPin size={16} />
-                <span>{activeCallingUser.locationText} ({activeCallingUser.calculatedDistance} km away)</span>
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Your location: <span style={{ color: 'white', fontWeight: 500 }}>{userLocationText}</span>
-              </div>
-            </div>
-          )}
-          <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem' }}>
-            Establishing secure encrypted line
-          </p>
-          <button
-            className="call-ctrl-btn end"
-            onClick={handleCancelCall}
-            title="Cancel Call"
-            style={{ width: '60px', height: '60px' }}
-          >
-            <PhoneOff size={24} />
-          </button>
-        </div>
-      )}
+
 
       {/* Paywall Subscription Modal */}
       {showPaywall && activeCallingUser && (
@@ -3005,174 +3029,333 @@ export default function App() {
           </div>
         )}
 
-        {/* Incoming Call Request UI Overlay */}
+        {/* WhatsApp-Style Incoming Call Request UI Overlay */}
         {incomingCallRequest && (
-          <div className="call-overlay" style={{ zIndex: 4000, background: 'linear-gradient(135deg, #111827, #1f2937)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem' }}>
-            <div className="ring-radar">
-              <div className="radar-wave" style={{ background: 'var(--primary)' }}></div>
-              <div className="radar-wave" style={{ background: 'var(--primary)', animationDelay: '0.5s' }}></div>
-              <div className="radar-wave" style={{ background: 'var(--primary)', animationDelay: '1s' }}></div>
-              <div className="ring-avatar" style={{ background: 'var(--primary)', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2.5rem', fontWeight: 'bold' }}>
-                👤
+          <div className="whatsapp-call-overlay" style={{ zIndex: 6000 }}>
+            <div className="whatsapp-top-bar" style={{ justifyContent: 'center' }}>
+              <div className="whatsapp-call-sub" style={{ fontSize: '0.88rem' }}>
+                <Lock size={13} style={{ color: '#25d366' }} />
+                <span>WhatsApp {incomingCallRequest.isVideo ? 'Video' : 'Voice'} Call</span>
               </div>
             </div>
-            <h2 style={{ fontSize: '1.6rem', fontWeight: 'bold', color: 'white', marginBottom: '0.2rem', textAlign: 'center' }}>
-              {incomingCallRequest.fromName} is calling...
-            </h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '2.5rem', textAlign: 'center' }}>
-              Incoming secure private {incomingCallRequest.isVideo ? 'Video' : 'Voice'} Call
-            </p>
-            <div style={{ display: 'flex', gap: '2rem', justifyContent: 'center', width: '100%' }}>
+
+            <div className="whatsapp-voice-screen">
+              <div className="whatsapp-voice-avatar-wrap">
+                <div className="whatsapp-ripple-1"></div>
+                <div className="whatsapp-ripple-2"></div>
+                <div className="whatsapp-ripple-3"></div>
+                <div className="whatsapp-voice-avatar">
+                  👤
+                </div>
+              </div>
+
+              <div className="whatsapp-voice-name">{incomingCallRequest.fromName}</div>
+              <div className="whatsapp-voice-status">
+                Incoming {incomingCallRequest.isVideo ? 'Video' : 'Voice'} Call...
+              </div>
+              <div className="whatsapp-voice-meta">
+                <Lock size={12} />
+                <span>End-to-end encrypted</span>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="whatsapp-dock" style={{ gap: '2.5rem', padding: '12px 28px' }}>
               <button
-                className="call-ctrl-btn end"
+                className="whatsapp-ctrl-btn end-call"
                 onClick={handleRejectCall}
                 title="Decline Call"
-                style={{ width: '64px', height: '64px', background: 'var(--danger)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'white' }}
+                style={{ width: '62px', height: '62px' }}
               >
-                <PhoneOff size={24} />
+                <PhoneOff size={26} />
               </button>
               <button
-                className="call-ctrl-btn"
+                className="whatsapp-ctrl-btn"
                 onClick={handleAcceptCall}
                 title="Accept Call"
-                style={{ width: '64px', height: '64px', background: 'var(--primary)', border: 'none', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#000' }}
+                style={{ width: '62px', height: '62px', background: '#25d366', color: '#ffffff', boxShadow: '0 6px 20px rgba(37, 211, 102, 0.45)' }}
               >
-                <Phone size={24} />
+                {incomingCallRequest.isVideo ? <Video size={26} /> : <Phone size={26} />}
               </button>
             </div>
           </div>
         )}
 
-        {/* Call Overlay Interface */}
-        {inCall && (
-          <div className="call-overlay" style={{ background: '#000', padding: 0 }}>
-            {activeCallingUser && activeCallingUser.id?.startsWith('demo-') ? (
-              /* Simulated call layout (demo profiles) */
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
-                <div className="simulated-remote-feed" style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: 'linear-gradient(135deg, #1f2937, #111827)'
-                }}>
-                  <div className="call-avatar-large" style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: '#000',
-                    fontSize: '3rem',
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
-                    animation: 'pulse 2s infinite',
-                    marginBottom: '1rem'
-                  }}>
-                    {activeCallingUser.avatar}
+        {/* WhatsApp-Style Calling Interface (Outgoing Ringing & Active Connected) */}
+        {(inCall || (activeCallingUser && !showPaywall)) && (
+          <div className="whatsapp-call-overlay">
+            {/* Top Bar Header */}
+            <div className="whatsapp-top-bar">
+              <div className="whatsapp-header-info">
+                <div className="whatsapp-contact-name">
+                  {activeCallingUser?.name || remoteUsername || 'User'}
+                </div>
+                <div className="whatsapp-call-sub">
+                  <Lock size={12} style={{ color: '#25d366' }} />
+                  <span>
+                    {!inCall
+                      ? 'Calling...'
+                      : (activeCallingUser?.isVideo || !isCameraOff ? 'WhatsApp Video Call' : 'WhatsApp Voice Call')}
+                  </span>
+                </div>
+                {inCall && (
+                  <div className="whatsapp-call-timer">
+                    <div className="whatsapp-timer-dot"></div>
+                    <span>{formatCallTime(callDuration)}</span>
                   </div>
-                  <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser.name}</h2>
-                  {activeCallingUser.locationText && (
-                    <div style={{ color: '#10b981', fontSize: '0.9rem', marginBottom: '0.4rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <MapPin size={14} />
-                        <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km away</span>
+                )}
+                {activeCallingUser?.locationText && (
+                  <div style={{ fontSize: '0.78rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                    <MapPin size={12} />
+                    <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km from {userLocationText}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Video Call Mode vs Voice Call Mode */}
+            {(activeCallingUser?.isVideo || !isCameraOff) ? (
+              /* ================= VIDEO CALL LAYOUT ================= */
+              <div className="whatsapp-video-stage">
+                {/* Main Fullscreen Video Feed */}
+                {!isSwappedVideo ? (
+                  /* Primary: Remote feed (or self preview if outgoing) */
+                  inCall && remoteCameraStatus && remoteStream ? (
+                    <video
+                      ref={(el) => {
+                        remoteVideoRef.current = el;
+                        if (el && remoteStream && el.srcObject !== remoteStream) {
+                          el.srcObject = remoteStream;
+                          el.play().catch(e => console.warn("Remote play catch:", e));
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      className="whatsapp-full-video"
+                    />
+                  ) : !inCall && peerEngine.localStream && !isCameraOff ? (
+                    /* Outgoing video preview filling background while ringing */
+                    <video
+                      ref={(el) => {
+                        if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
+                          el.srcObject = peerEngine.localStream;
+                          el.play().catch(e => console.warn("Local play catch:", e));
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="whatsapp-full-video"
+                      style={{ transform: 'scaleX(-1)' }}
+                    />
+                  ) : (
+                    /* Video Off / Connecting Placeholder */
+                    <div className="whatsapp-video-off-placeholder">
+                      <div className="whatsapp-avatar-large">
+                        {activeCallingUser?.avatar || '👤'}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Your location: <span style={{ color: 'white' }}>{userLocationText}</span>
-                      </div>
+                      <h2 style={{ color: 'white', margin: 0, fontSize: '1.4rem' }}>
+                        {activeCallingUser?.name || remoteUsername || 'User'}
+                      </h2>
+                      <p style={{ color: '#8696a0', margin: 0, fontSize: '0.9rem' }}>
+                        {!inCall ? 'Ringing...' : (remoteCameraStatus ? 'Connecting video feed...' : 'Camera is turned off')}
+                      </p>
                     </div>
+                  )
+                ) : (
+                  /* Swapped: Local feed is Fullscreen */
+                  peerEngine.localStream && !isCameraOff ? (
+                    <video
+                      ref={(el) => {
+                        if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
+                          el.srcObject = peerEngine.localStream;
+                          el.play().catch(e => console.warn("Local play catch:", e));
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="whatsapp-full-video"
+                      style={{ transform: 'scaleX(-1)' }}
+                    />
+                  ) : (
+                    <div className="whatsapp-video-off-placeholder">
+                      <div className="whatsapp-avatar-large">👤</div>
+                      <p style={{ color: '#8696a0' }}>Your camera is off</p>
+                    </div>
+                  )
+                )}
+
+                {/* Floating PiP (Picture-in-Picture) Window - Tap to Swap */}
+                <div
+                  className="whatsapp-pip-card"
+                  onClick={() => setIsSwappedVideo(prev => !prev)}
+                  title="Tap to switch camera view"
+                >
+                  {!isSwappedVideo ? (
+                    /* PiP shows Local Camera */
+                    !isCameraOff && peerEngine.localStream ? (
+                      <video
+                        ref={(el) => {
+                          localVideoRef.current = el;
+                          if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
+                            el.srcObject = peerEngine.localStream;
+                            el.play().catch(e => console.warn("Local play catch:", e));
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="whatsapp-pip-video"
+                      />
+                    ) : (
+                      <div className="whatsapp-pip-off">
+                        <VideoOff size={20} />
+                        <span>Camera Off</span>
+                      </div>
+                    )
+                  ) : (
+                    /* PiP shows Remote Camera */
+                    remoteStream && remoteCameraStatus ? (
+                      <video
+                        ref={(el) => {
+                          if (el && remoteStream && el.srcObject !== remoteStream) {
+                            el.srcObject = remoteStream;
+                            el.play().catch(e => console.warn("Remote play catch:", e));
+                          }
+                        }}
+                        autoPlay
+                        playsInline
+                        className="whatsapp-pip-video"
+                        style={{ transform: 'none' }}
+                      />
+                    ) : (
+                      <div className="whatsapp-pip-off">
+                        <span style={{ fontSize: '1.4rem' }}>{activeCallingUser?.avatar || '👤'}</span>
+                        <span style={{ fontSize: '0.65rem' }}>Camera Off</span>
+                      </div>
+                    )
                   )}
-                  <div className="call-duration" style={{ color: 'var(--primary)', fontSize: '1rem', fontFamily: 'monospace' }}>
-                    {formatCallTime(callDuration)}
-                  </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
-                    Connected via secure P2P line
-                  </p>
+                  <div className="whatsapp-pip-badge">Swap</div>
                 </div>
 
-                {/* Local camera preview */}
-                <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
-
-                {/* Call controls */}
-                <div className="call-controls" style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-                  <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
-                    {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                {/* Video Bottom Floating Controls Dock */}
+                <div className="whatsapp-dock">
+                  <button
+                    className="whatsapp-ctrl-btn"
+                    onClick={handleSwitchCamera}
+                    title="Switch Camera (Front/Back)"
+                  >
+                    <SwitchCamera size={22} />
                   </button>
-                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'rgba(255,255,255,0.2)' : 'var(--primary)', color: isCameraOff ? 'white' : 'black' }} onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff} title="Toggle Camera">
-                    {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
+                  <button
+                    className={`whatsapp-ctrl-btn ${isCameraOff ? 'off' : ''}`}
+                    onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff}
+                    title="Toggle Video"
+                  >
+                    {isCameraOff ? <VideoOff size={22} /> : <Video size={22} />}
                   </button>
-                  <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
-                    <Shuffle size={28} />
+                  <button
+                    className={`whatsapp-ctrl-btn ${isMicMuted ? 'off' : ''}`}
+                    onClick={toggleMute}
+                    title="Mute Microphone"
+                  >
+                    {isMicMuted ? <MicOff size={22} /> : <Mic size={22} />}
                   </button>
-                  <button className="call-ctrl-btn end" onClick={() => handleEndCall()} title="End Call">
-                    <PhoneOff size={28} />
+                  <button
+                    className={`whatsapp-ctrl-btn ${isSpeakerMuted ? 'off' : ''}`}
+                    onClick={toggleSpeaker}
+                    title="Mute Speaker Audio"
+                  >
+                    {isSpeakerMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                  </button>
+                  {viewMode === 'random' && inCall && (
+                    <button
+                      className="whatsapp-ctrl-btn"
+                      style={{ background: '#f59e0b', color: '#000' }}
+                      onClick={handleSkipCall}
+                      title="Skip to Next Match"
+                    >
+                      <Shuffle size={22} />
+                    </button>
+                  )}
+                  <button
+                    className="whatsapp-ctrl-btn end-call"
+                    onClick={inCall ? () => handleEndCall() : handleCancelCall}
+                    title="End Call"
+                  >
+                    <PhoneOff size={24} />
                   </button>
                 </div>
               </div>
             ) : (
-              /* Real User P2P matching layout */
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', width: '100%', height: '100%' }}>
-                {remoteCameraStatus && remoteStream ? (
-                  /* Show remote video if their camera is enabled */
-                  <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  /* Voice-only caller layout with large pulsing avatar */
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'linear-gradient(135deg, #1f2937, #111827)'
-                  }}>
-                    <div className="call-avatar-large" style={{
-                      width: '120px',
-                      height: '120px',
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                      color: '#000',
-                      fontSize: '3rem',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 8px 32px rgba(74, 222, 128, 0.4)',
-                      animation: 'pulse 2s infinite',
-                      marginBottom: '1rem'
-                    }}>
-                      {activeCallingUser?.avatar || '👤'}
-                    </div>
-                    <h2 style={{ color: 'white', marginBottom: '0.2rem' }}>{activeCallingUser?.name || 'Matched User'}</h2>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      Voice Call Active
-                    </p>
+              /* ================= VOICE CALL LAYOUT ================= */
+              <div className="whatsapp-voice-screen">
+                <div className="whatsapp-voice-avatar-wrap">
+                  <div className="whatsapp-ripple-1"></div>
+                  <div className="whatsapp-ripple-2"></div>
+                  <div className="whatsapp-ripple-3"></div>
+                  <div className="whatsapp-voice-avatar">
+                    {activeCallingUser?.avatar || '👤'}
+                  </div>
+                </div>
+
+                <div className="whatsapp-voice-name">
+                  {activeCallingUser?.name || remoteUsername || 'User'}
+                </div>
+                <div className="whatsapp-voice-status">
+                  {!inCall ? 'Calling...' : 'Voice Call Active'}
+                </div>
+                <div className="whatsapp-voice-meta">
+                  <Lock size={12} />
+                  <span>End-to-end encrypted</span>
+                </div>
+                {activeCallingUser?.locationText && (
+                  <div style={{ fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '6px' }}>
+                    <MapPin size={12} />
+                    <span>{activeCallingUser.locationText} • {activeCallingUser.calculatedDistance} km from {userLocationText}</span>
                   </div>
                 )}
 
-                {/* Local camera preview */}
-                <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'absolute', top: '20px', right: '20px', width: '100px', height: '140px', objectFit: 'cover', borderRadius: '12px', border: '2px solid white', display: isCameraOff ? 'none' : 'block', transform: 'scaleX(-1)' }} />
-
-                {/* Call controls */}
-                <div className="call-controls" style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', zIndex: 100 }}>
-                  <button className={`call-ctrl-btn ${isMicMuted ? 'active' : ''}`} onClick={toggleMute} title="Mute Mic">
-                    {isMicMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                {/* Voice Bottom Floating Controls Dock */}
+                <div className="whatsapp-dock">
+                  <button
+                    className={`whatsapp-ctrl-btn ${isSpeakerMuted ? 'off' : ''}`}
+                    onClick={toggleSpeaker}
+                    title="Speaker Audio"
+                  >
+                    {isSpeakerMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
                   </button>
-                  <button className="call-ctrl-btn" style={{ background: isCameraOff ? 'rgba(255,255,255,0.2)' : 'var(--primary)', color: isCameraOff ? 'white' : 'black' }} onClick={isCameraOff ? handleTurnCameraOn : handleTurnCameraOff} title="Toggle Camera">
-                    {isCameraOff ? <VideoOff size={28} /> : <Video size={28} />}
+                  <button
+                    className="whatsapp-ctrl-btn"
+                    onClick={handleTurnCameraOn}
+                    title="Switch to Video Call"
+                  >
+                    <Video size={22} />
                   </button>
-                  {viewMode === 'random' && (
-                    <button className="call-ctrl-btn" style={{ background: '#fbbf24', color: 'black' }} onClick={handleSkipCall} title="Skip to Next Match">
-                      <Shuffle size={28} />
+                  <button
+                    className={`whatsapp-ctrl-btn ${isMicMuted ? 'off' : ''}`}
+                    onClick={toggleMute}
+                    title="Mute Microphone"
+                  >
+                    {isMicMuted ? <MicOff size={22} /> : <Mic size={22} />}
+                  </button>
+                  {viewMode === 'random' && inCall && (
+                    <button
+                      className="whatsapp-ctrl-btn"
+                      style={{ background: '#f59e0b', color: '#000' }}
+                      onClick={handleSkipCall}
+                      title="Skip to Next Match"
+                    >
+                      <Shuffle size={22} />
                     </button>
                   )}
-                  <button className="call-ctrl-btn end" onClick={() => handleEndCall()} title="End Call">
-                    <PhoneOff size={28} />
+                  <button
+                    className="whatsapp-ctrl-btn end-call"
+                    onClick={inCall ? () => handleEndCall() : handleCancelCall}
+                    title="End Call"
+                  >
+                    <PhoneOff size={24} />
                   </button>
                 </div>
               </div>
