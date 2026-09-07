@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -320,6 +320,22 @@ const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: numbe
   return (R * c).toFixed(1);
 };
 
+export interface IncomingChatRequest {
+  id: string;
+  senderId: string;
+  senderName: string;
+  timestamp: number;
+  conn?: any;
+}
+
+export const formatRequestTime = (timestamp: number) => {
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 5) return 'Just now';
+  if (seconds < 60) return `${seconds}s ago`;
+  const mins = Math.floor(seconds / 60);
+  return `${mins}m ago`;
+};
+
 export default function App() {
   const [viewMode, setViewMode] = useState<'private' | 'public' | 'random'>('public');
   const [username, setUsername] = useState<string>('');
@@ -417,10 +433,13 @@ export default function App() {
   // Detect if running inside Native App
   const isApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('MalluChatApp');
 
-  // Incoming personal chat request
-  const [incomingChatRequest, setIncomingChatRequest] = useState<{ conn: any, metadata: any } | null>(null);
-  const incomingChatRequestRef = useRef(incomingChatRequest);
-  incomingChatRequestRef.current = incomingChatRequest;
+  // Incoming personal chat requests queue & management
+  const [incomingRequests, setIncomingRequests] = useState<IncomingChatRequest[]>([]);
+  const incomingRequestsRef = useRef(incomingRequests);
+  incomingRequestsRef.current = incomingRequests;
+  const [showRequestsModal, setShowRequestsModal] = useState<boolean>(false);
+  const lastRequestSoundTimeRef = useRef<number>(0);
+
   const [incomingCallRequest, setIncomingCallRequest] = useState<{ fromId: string, fromName: string, isVideo: boolean } | null>(null);
   const incomingCallRequestRef = useRef(incomingCallRequest);
   incomingCallRequestRef.current = incomingCallRequest;
@@ -472,6 +491,152 @@ export default function App() {
     return true;
   };
 
+  const addIncomingChatRequest = (req: { senderId: string, senderName: string, conn?: any }) => {
+    if (!req.senderId || req.senderId === myIdRef.current) return;
+
+    // If currently in an active private chat with someone else, automatically decline with busy
+    if (viewModeRef.current === 'private' && statusRef.current === 'connected' && activePrivatePeerIdRef.current && activePrivatePeerIdRef.current !== req.senderId) {
+      if (req.conn) {
+        try { req.conn.close(); } catch (_) {}
+      }
+      peerEngine.sendDeclineRequest(req.senderId, { type: 'decline', senderName: usernameRef.current, reason: 'busy' });
+      return;
+    }
+
+    // Play subtle alert tone debounced
+    const now = Date.now();
+    if (now - lastRequestSoundTimeRef.current > 1500) {
+      try { receivedSound.play().catch(() => {}); } catch (_) {}
+      lastRequestSoundTimeRef.current = now;
+    }
+
+    setIncomingRequests(prev => {
+      const existsIndex = prev.findIndex(r => r.senderId === req.senderId);
+      if (existsIndex >= 0) {
+        const updated = [...prev];
+        updated[existsIndex] = {
+          ...updated[existsIndex],
+          senderName: req.senderName || updated[existsIndex].senderName,
+          conn: req.conn || updated[existsIndex].conn,
+          timestamp: now
+        };
+        return updated;
+      }
+      return [
+        {
+          id: req.senderId,
+          senderId: req.senderId,
+          senderName: req.senderName || 'User',
+          conn: req.conn,
+          timestamp: now
+        },
+        ...prev
+      ];
+    });
+  };
+
+  const handleAcceptRequest = (req: IncomingChatRequest) => {
+    const senderPeerId = req.senderId;
+    const senderName = req.senderName || 'User';
+
+    setRemoteUsername(senderName);
+    setActivePrivatePeerId(senderPeerId);
+    setViewMode('private');
+    setStatus('connected');
+
+    // Close and decline any other pending requests in queue
+    incomingRequestsRef.current.forEach(otherReq => {
+      if (otherReq.senderId !== senderPeerId) {
+        if (otherReq.conn) {
+          try { otherReq.conn.close(); } catch (_) {}
+        }
+        peerEngine.sendDeclineRequest(otherReq.senderId, { type: 'decline', senderName: usernameRef.current });
+        sendPrivateMessage({
+          id: uuidv4(),
+          type: 'decline',
+          recipientId: otherReq.senderId,
+          senderName: usernameRef.current,
+          senderId: myIdRef.current
+        });
+      }
+    });
+
+    // Establish peer connection
+    if (req.conn) {
+      peerEngine.setupConnection(req.conn);
+    } else if (senderPeerId && (!peerEngine.connection || !peerEngine.connection.open || peerEngine.connection.peer !== senderPeerId)) {
+      peerEngine.connectToPeer(senderPeerId, { senderName: usernameRef.current, type: 'accept' });
+    }
+
+    // Send accept signal back to initiator
+    setTimeout(() => {
+      sendPrivateMessage({
+        id: uuidv4(),
+        senderId: myIdRef.current,
+        senderName: usernameRef.current || 'User',
+        recipientId: senderPeerId,
+        type: 'accept',
+        timestamp: Date.now()
+      });
+    }, 100);
+
+    setIncomingRequests([]);
+    setShowRequestsModal(false);
+  };
+
+  const handleDeclineRequest = (req: IncomingChatRequest) => {
+    if (req.conn) {
+      try { req.conn.close(); } catch (_) {}
+    }
+    peerEngine.sendDeclineRequest(req.senderId, { type: 'decline', senderName: usernameRef.current });
+    sendPrivateMessage({
+      id: uuidv4(),
+      type: 'decline',
+      recipientId: req.senderId,
+      senderName: usernameRef.current,
+      senderId: myIdRef.current
+    });
+
+    setIncomingRequests(prev => prev.filter(r => r.senderId !== req.senderId));
+  };
+
+  const handleDeclineAllRequests = () => {
+    incomingRequestsRef.current.forEach(req => {
+      if (req.conn) {
+        try { req.conn.close(); } catch (_) {}
+      }
+      peerEngine.sendDeclineRequest(req.senderId, { type: 'decline', senderName: usernameRef.current });
+      sendPrivateMessage({
+        id: uuidv4(),
+        type: 'decline',
+        recipientId: req.senderId,
+        senderName: usernameRef.current,
+        senderId: myIdRef.current
+      });
+    });
+
+    setIncomingRequests([]);
+    setShowRequestsModal(false);
+  };
+
+  // Auto-prune requests older than 50 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      setIncomingRequests(prev => {
+        const valid = prev.filter(r => {
+          const isFresh = now - r.timestamp < 50000;
+          if (!isFresh && r.conn) {
+            try { r.conn.close(); } catch (_) {}
+          }
+          return isFresh;
+        });
+        return valid.length === prev.length ? prev : valid;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   const processPrivatePayload = (msg: any) => {
     if (msg.senderId && msg.senderId !== myIdRef.current) {
       if (!activePrivatePeerIdRef.current && msg.type !== 'call_decline' && msg.type !== 'decline' && msg.type !== 'call_end') {
@@ -480,7 +645,11 @@ export default function App() {
     }
 
     if (msg.type === 'public-invite') {
-      setIncomingChatRequest({ conn: null, metadata: { senderName: msg.senderName, peerId: msg.senderId } });
+      addIncomingChatRequest({
+        senderId: msg.senderId,
+        senderName: msg.senderName,
+        conn: null
+      });
       return;
     }
     if (msg.type === 'accept') {
@@ -569,14 +738,21 @@ export default function App() {
       setIsCameraOff(!isVideo);
       setRemoteCameraStatus(isVideo);
 
+      const bindStreamWithTrackListeners = (rStream: MediaStream) => {
+        const syncTracks = () => {
+          rStream.getTracks().forEach(t => { t.enabled = true; });
+          setRemoteStream(new MediaStream(rStream.getTracks()));
+        };
+        rStream.addEventListener('addtrack', syncTracks);
+        rStream.addEventListener('removetrack', syncTracks);
+        syncTracks();
+      };
+
       if (peerEngine.localStream) {
         const call = peerEngine.startCall(
           msg.senderId,
           peerEngine.localStream,
-          (rStream) => {
-            rStream.getTracks().forEach(t => { t.enabled = true; });
-            setRemoteStream(rStream);
-          },
+          bindStreamWithTrackListeners,
           { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
         );
         if (call) {
@@ -595,16 +771,11 @@ export default function App() {
               stream.addTrack(pTrack);
             }
             peerEngine.localStream = stream;
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream;
-            }
+            safeAttachStream(localVideoRef.current, stream, true);
             const call = peerEngine.startCall(
               msg.senderId,
               stream,
-              (rStream) => {
-                rStream.getTracks().forEach(t => { t.enabled = true; });
-                setRemoteStream(rStream);
-              },
+              bindStreamWithTrackListeners,
               { metadata: { callType: isVideo ? 'private-video' : 'private-voice' } }
             );
             if (call) {
@@ -725,6 +896,39 @@ export default function App() {
   const activeCallingUserRef = useRef(activeCallingUser);
   activeCallingUserRef.current = activeCallingUser;
   const rateLimiter = useRef(new RateLimiter(5, 5000));
+
+  const safeAttachStream = (
+    element: HTMLMediaElement | null,
+    stream: MediaStream | null,
+    isMuted: boolean = false
+  ) => {
+    if (!element) return;
+    if (!stream) {
+      if (element.srcObject) {
+        element.srcObject = null;
+      }
+      return;
+    }
+
+    if (element.srcObject !== stream) {
+      element.srcObject = stream;
+    }
+
+    if (element.muted !== isMuted) {
+      element.muted = isMuted;
+    }
+
+    if (element.paused) {
+      const playPromise = element.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          if (err.name !== 'AbortError') {
+            console.warn("safeAttachStream play warning:", err);
+          }
+        });
+      }
+    }
+  };
 
   const createPlaceholderVideoTrack = () => {
     const canvas = document.createElement('canvas');
@@ -1012,18 +1216,17 @@ export default function App() {
           }
         }
 
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = peerEngine.localStream;
-        }
+        safeAttachStream(localVideoRef.current, peerEngine.localStream, true);
         setIsCameraOff(false);
-        peerEngine.sendMessage({
+        const targetPeerId = activeCallingUserRef.current?.id || activePrivatePeerIdRef.current;
+        sendPrivateMessage({
           id: uuidv4(),
           senderId: myId,
           senderName: username,
-          type: 'camera_status' as any,
+          type: 'camera_status',
           text: 'on',
-          timestamp: Date.now()
-        } as any);
+          recipientId: targetPeerId
+        });
       })
       .catch((err) => {
         alert("Could not activate camera: " + err.message);
@@ -1050,14 +1253,15 @@ export default function App() {
       }
     }
     setIsCameraOff(true);
-    peerEngine.sendMessage({
+    const targetPeerId = activeCallingUserRef.current?.id || activePrivatePeerIdRef.current;
+    sendPrivateMessage({
       id: uuidv4(),
       senderId: myId,
       senderName: username,
-      type: 'camera_status' as any,
+      type: 'camera_status',
       text: 'off',
-      timestamp: Date.now()
-    } as any);
+      recipientId: targetPeerId
+    });
   };
 
   const handleSwitchCamera = async () => {
@@ -1096,7 +1300,7 @@ export default function App() {
       }
 
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = peerEngine.localStream;
+        safeAttachStream(localVideoRef.current, peerEngine.localStream, true);
       }
 
       setFacingMode(nextFacing);
@@ -1187,7 +1391,7 @@ export default function App() {
 
       peerEngine.localStream = stream;
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+        safeAttachStream(localVideoRef.current, stream, true);
       }
 
       setActiveCallingUser({
@@ -1459,7 +1663,7 @@ export default function App() {
       }
       
       // If we are the recipient of an incoming chat request, do not mark as connected until we explicitly accept!
-      if (incomingChatRequestRef.current) {
+      if (incomingRequestsRef.current.length > 0 && statusRef.current !== 'connected') {
         console.log("Connection opened but waiting for user to click Accept");
         return;
       }
@@ -1489,8 +1693,17 @@ export default function App() {
 
         const stream = preAcquiredStreamRef.current;
         if (stream) {
-          peerEngine.startCall(remotePeerId, stream, (rStream) => {
-            setRemoteStream(rStream);
+          const bindStreamWithTrackListeners = (rStream: MediaStream) => {
+            const syncTracks = () => {
+              rStream.getTracks().forEach(t => { t.enabled = true; });
+              setRemoteStream(new MediaStream(rStream.getTracks()));
+            };
+            rStream.addEventListener('addtrack', syncTracks);
+            rStream.addEventListener('removetrack', syncTracks);
+            syncTracks();
+          };
+          peerEngine.startCall(remotePeerId, stream, bindStreamWithTrackListeners, {
+            metadata: { callType: 'private-video' }
           });
           setInCall(true);
           if (matchConnectionTimeoutRef.current) {
@@ -1562,9 +1775,19 @@ export default function App() {
         return;
       }
       
-      // Setup the connection immediately so that open/data events are captured
-      peerEngine.setupConnection(conn);
-      setIncomingChatRequest({ conn, metadata });
+      const senderId = metadata?.peerId || conn.peer;
+      const senderName = metadata?.senderName || 'Anonymous';
+      
+      // Auto remove if caller closes before response
+      conn.on('close', () => {
+        setIncomingRequests(prev => prev.filter(r => r.senderId !== senderId));
+      });
+
+      addIncomingChatRequest({
+        senderId,
+        senderName,
+        conn
+      });
     };
 
     peerEngine.onMessage = (msg: any) => {
@@ -1573,7 +1796,7 @@ export default function App() {
 
     peerEngine.onCallReceived = (call) => {
       const callType = call.metadata?.callType;
-      const isVideo = callType === 'private-video';
+      const isVideo = callType === 'private-video' || activeCallingUserRef.current?.isVideo || incomingCallRequestRef.current?.isVideo || false;
 
       setIsCameraOff(!isVideo);
       setRemoteCameraStatus(isVideo);
@@ -1582,12 +1805,19 @@ export default function App() {
         handleEndCallRef.current(true);
       });
 
+      const bindStreamWithTrackListeners = (rStream: MediaStream) => {
+        const syncTracks = () => {
+          rStream.getTracks().forEach(t => { t.enabled = true; });
+          setRemoteStream(new MediaStream(rStream.getTracks()));
+        };
+        rStream.addEventListener('addtrack', syncTracks);
+        rStream.addEventListener('removetrack', syncTracks);
+        syncTracks();
+      };
+
       if (peerEngine.localStream) {
         // Automatically answer since the user already accepted via the incoming call request UI modal!
-        call.on('stream', (rStream) => {
-          rStream.getTracks().forEach(t => { t.enabled = true; });
-          setRemoteStream(rStream);
-        });
+        call.on('stream', bindStreamWithTrackListeners);
         call.answer(peerEngine.localStream);
         peerEngine.callConnection = call;
         setInCall(true);
@@ -1602,14 +1832,9 @@ export default function App() {
             }
 
             peerEngine.localStream = stream;
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream;
-            }
+            safeAttachStream(localVideoRef.current, stream, true);
 
-            call.on('stream', (rStream) => {
-              rStream.getTracks().forEach(t => { t.enabled = true; });
-              setRemoteStream(rStream);
-            });
+            call.on('stream', bindStreamWithTrackListeners);
             call.answer(stream);
             peerEngine.callConnection = call;
             setInCall(true);
@@ -1768,24 +1993,34 @@ export default function App() {
   }, [isAdminAuth]);
 
   useEffect(() => {
-    if (remoteStream) {
-      remoteStream.getTracks().forEach(t => { t.enabled = true; });
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.play().catch(e => console.warn("Remote audio play catch:", e));
-      }
-      if (remoteVideoRef.current) {
-        const streamToAttach = isSwappedVideo ? (peerEngine.localStream || remoteStream) : remoteStream;
-        remoteVideoRef.current.srcObject = streamToAttach;
-        remoteVideoRef.current.play().catch(e => console.warn("Remote video play catch:", e));
+    if (remoteAudioRef.current) {
+      safeAttachStream(remoteAudioRef.current, remoteStream, isSpeakerMuted);
+      if (remoteStream) {
+        remoteAudioRef.current.play().catch((err) => {
+          if (err.name !== 'AbortError') {
+            console.warn("Audio autoplay pending user gesture:", err);
+          }
+          const unlock = () => {
+            remoteAudioRef.current?.play().catch(() => {});
+            window.removeEventListener('click', unlock);
+            window.removeEventListener('touchstart', unlock);
+          };
+          window.addEventListener('click', unlock, { once: true });
+          window.addEventListener('touchstart', unlock, { once: true });
+        });
       }
     }
-    if (peerEngine.localStream && localVideoRef.current) {
-      const pipStream = isSwappedVideo ? remoteStream : peerEngine.localStream;
-      localVideoRef.current.srcObject = pipStream;
-      localVideoRef.current.play().catch(e => console.warn("Local video play catch:", e));
+
+    const mainStream = isSwappedVideo ? (peerEngine.localStream || remoteStream) : remoteStream;
+    const pipStream = isSwappedVideo ? remoteStream : peerEngine.localStream;
+
+    if (remoteVideoRef.current) {
+      safeAttachStream(remoteVideoRef.current, mainStream, true);
     }
-  }, [remoteStream, inCall, viewMode, remoteCameraStatus, isCameraOff, isSwappedVideo]);
+    if (localVideoRef.current) {
+      safeAttachStream(localVideoRef.current, pipStream, true);
+    }
+  }, [remoteStream, peerEngine.localStream, inCall, viewMode, remoteCameraStatus, isCameraOff, isSwappedVideo, isSpeakerMuted]);
 
   const handleStartTyping = () => {
     if (viewMode !== 'private' || status !== 'connected') return;
@@ -2394,9 +2629,7 @@ export default function App() {
       }
 
       peerEngine.localStream = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      safeAttachStream(localVideoRef.current, stream, true);
 
       setIsCameraOff(!isVideo);
       setRemoteCameraStatus(isVideo);
@@ -2458,6 +2691,11 @@ export default function App() {
     }
   };
 
+
+  const hasRemoteVideoFeed = inCall && !!remoteStream && (
+    remoteCameraStatus ||
+    remoteStream.getVideoTracks().some(t => t.enabled && t.readyState === 'live')
+  );
 
   // ======== RENDERS ======== 
   return (
@@ -2750,6 +2988,19 @@ export default function App() {
             <Lock size={20} />
             Private Space
           </div>
+          <div
+            className={`nav-item-desktop ${showRequestsModal ? 'active' : ''}`}
+            onClick={() => setShowRequestsModal(true)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <UserPlus size={20} />
+              <span>Chat Requests</span>
+            </div>
+            {incomingRequests.length > 0 && (
+              <span className="requests-badge-pill">{incomingRequests.length}</span>
+            )}
+          </div>
           {!isApp && (
             <a className="nav-item-desktop" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '10px', paddingTop: '15px' }}>
               <Download size={20} />
@@ -2941,90 +3192,179 @@ export default function App() {
           </div>
         )}
 
-        {/* Incoming Chat Request Notification */}
-        {incomingChatRequest && (
-          <div style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            zIndex: 2000,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid var(--panel-border)',
-            borderRadius: '16px',
-            padding: '1.5rem',
-            maxWidth: '350px',
-            width: 'calc(100% - 40px)',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            animation: 'slideIn 0.3s ease-out forwards'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>Chat Request</h3>
-                <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  <strong>{incomingChatRequest.metadata?.senderName || 'Someone'}</strong> wants to connect securely.
+        {/* Floating Multi-Request Notification Toast (When Modal is not open) */}
+        {incomingRequests.length > 0 && !showRequestsModal && (
+          <div className="floating-requests-banner">
+            {incomingRequests.length === 1 ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ padding: '6px', background: 'rgba(74, 222, 128, 0.15)', color: 'var(--primary)', borderRadius: '50%', display: 'flex' }}>
+                      <LinkIcon size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '0.98rem', color: 'var(--text-main)', fontWeight: 700 }}>Chat Request</h4>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>1-on-1 Private Chat</div>
+                    </div>
+                  </div>
+                  <button
+                    className="icon-btn"
+                    onClick={() => handleDeclineRequest(incomingRequests[0])}
+                    title="Dismiss"
+                    style={{ width: '28px', height: '28px' }}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                <p style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  <strong style={{ color: 'var(--username-color)' }}>{incomingRequests[0].senderName}</strong> wants to connect with you securely.
                 </p>
-              </div>
-              <div style={{ padding: '6px', background: 'rgba(74, 222, 128, 0.1)', color: 'var(--primary)', borderRadius: '50%' }}>
-                <LinkIcon size={20} />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                className="btn btn-secondary" style={{ flex: 1, margin: 0, padding: '0.6rem', fontSize: '0.9rem' }}
-                onClick={() => {
-                  const senderPeerId = incomingChatRequest.conn?.peer || incomingChatRequest.metadata?.peerId;
-                  if (incomingChatRequest.conn) {
-                    try { incomingChatRequest.conn.close(); } catch (_) {}
-                  }
-                  if (senderPeerId) {
-                    peerEngine.sendDeclineRequest(senderPeerId, { type: 'decline', senderName: username });
-                    sendPrivateMessage({
-                      id: uuidv4(),
-                      type: 'decline',
-                      recipientId: senderPeerId,
-                      senderName: username,
-                      senderId: myId
-                    });
-                  }
-                  setIncomingChatRequest(null);
-                  setStatus('disconnected');
-                }}
-              >
-                Decline
-              </button>
-              <button
-                className="btn btn-primary" style={{ flex: 1, margin: 0, padding: '0.6rem', fontSize: '0.9rem' }}
-                onClick={() => {
-                  const senderPeerId = incomingChatRequest.conn?.peer || incomingChatRequest.metadata?.peerId;
-                  const senderName = incomingChatRequest.metadata?.senderName || 'User';
-                  setRemoteUsername(senderName);
-                  if (senderPeerId) {
-                    setActivePrivatePeerId(senderPeerId);
-                  }
-                  setViewMode('private');
-                  setStatus('connected');
-                  setIncomingChatRequest(null);
-                  
-                  if (senderPeerId && (!peerEngine.connection || !peerEngine.connection.open || peerEngine.connection.peer !== senderPeerId)) {
-                    peerEngine.connectToPeer(senderPeerId, { senderName: username, type: 'accept' });
-                  }
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ flex: 1, margin: 0, padding: '0.55rem', fontSize: '0.85rem', borderRadius: '10px' }}
+                    onClick={() => handleDeclineRequest(incomingRequests[0])}
+                  >
+                    Decline
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1.2, margin: 0, padding: '0.55rem', fontSize: '0.85rem', borderRadius: '10px' }}
+                    onClick={() => handleAcceptRequest(incomingRequests[0])}
+                  >
+                    Accept
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="requests-badge-pill">{incomingRequests.length}</span>
+                    <h4 style={{ margin: 0, fontSize: '0.98rem', color: 'var(--text-main)', fontWeight: 700 }}>Private Requests</h4>
+                  </div>
+                  <button
+                    className="icon-btn"
+                    onClick={() => setShowRequestsModal(true)}
+                    title="Expand"
+                    style={{ width: '28px', height: '28px' }}
+                  >
+                    <UserPlus size={16} />
+                  </button>
+                </div>
+                <p style={{ margin: '0 0 1rem 0', color: 'var(--text-main)', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  Latest from <strong style={{ color: 'var(--username-color)' }}>{incomingRequests[0].senderName}</strong> and {incomingRequests.length - 1} other{incomingRequests.length > 2 ? 's' : ''}.
+                </p>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    className="btn btn-secondary"
+                    style={{ flex: 1, margin: 0, padding: '0.55rem', fontSize: '0.82rem', borderRadius: '10px' }}
+                    onClick={handleDeclineAllRequests}
+                  >
+                    Decline All
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1.4, margin: 0, padding: '0.55rem', fontSize: '0.82rem', borderRadius: '10px' }}
+                    onClick={() => setShowRequestsModal(true)}
+                  >
+                    Review All ({incomingRequests.length})
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
-                  // Send accept signal back to initiator
-                  setTimeout(() => {
-                    sendPrivateMessage({
-                      id: uuidv4(),
-                      senderId: myId,
-                      senderName: usernameRef.current || 'User',
-                      recipientId: senderPeerId,
-                      type: 'accept',
-                      timestamp: Date.now()
-                    });
-                  }, 100);
-                }}
-              >
-                Accept
-              </button>
+        {/* Dedicated Chat Requests Area Modal */}
+        {showRequestsModal && (
+          <div className="chat-requests-overlay" onClick={() => setShowRequestsModal(false)}>
+            <div className="chat-requests-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="chat-requests-header">
+                <div className="chat-requests-title-wrap">
+                  <div style={{ padding: '8px', background: 'rgba(74, 222, 128, 0.12)', color: 'var(--primary)', borderRadius: '12px', display: 'flex' }}>
+                    <UserPlus size={20} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 className="chat-requests-title">Chat Requests</h3>
+                      {incomingRequests.length > 0 && (
+                        <span className="requests-badge-pill">{incomingRequests.length}</span>
+                      )}
+                    </div>
+                    <p className="chat-requests-subtext">Requests for 1-on-1 private rooms</p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {incomingRequests.length > 1 && (
+                    <button
+                      className="chat-request-btn-decline"
+                      onClick={handleDeclineAllRequests}
+                      style={{ fontSize: '0.78rem', padding: '5px 10px' }}
+                    >
+                      Decline All
+                    </button>
+                  )}
+                  <button
+                    className="icon-btn"
+                    onClick={() => setShowRequestsModal(false)}
+                    title="Close"
+                    style={{ width: '32px', height: '32px' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="chat-requests-body">
+                {incomingRequests.length === 0 ? (
+                  <div className="chat-requests-empty">
+                    <div className="chat-requests-empty-icon">
+                      <Inbox size={28} />
+                    </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: 'var(--text-main)' }}>No Pending Requests</h4>
+                    <p style={{ margin: 0, fontSize: '0.85rem', maxWidth: '280px', lineHeight: 1.4 }}>
+                      When users in public chat invite you to private chat, their requests will appear in this area.
+                    </p>
+                  </div>
+                ) : (
+                  incomingRequests.map((req) => (
+                    <div key={req.senderId} className="chat-request-card">
+                      <div className="chat-request-user-info">
+                        <div className="chat-request-avatar">
+                          {req.senderName ? req.senderName.substring(0, 2).toUpperCase() : 'U'}
+                          <span className="chat-request-avatar-dot"></span>
+                        </div>
+                        <div className="chat-request-details">
+                          <div className="chat-request-name">{req.senderName}</div>
+                          <div className="chat-request-time">
+                            <Clock size={12} />
+                            <span>{formatRequestTime(req.timestamp)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="chat-request-actions">
+                        <button
+                          className="chat-request-btn-decline"
+                          onClick={() => handleDeclineRequest(req)}
+                          title="Decline Request"
+                        >
+                          <X size={14} />
+                          <span>Decline</span>
+                        </button>
+                        <button
+                          className="chat-request-btn-accept"
+                          onClick={() => handleAcceptRequest(req)}
+                          title="Accept & Chat"
+                        >
+                          <Check size={14} />
+                          <span>Accept</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -3120,27 +3460,22 @@ export default function App() {
                 {/* Main Fullscreen Video Feed */}
                 {!isSwappedVideo ? (
                   /* Primary: Remote feed (or self preview if outgoing) */
-                  inCall && remoteCameraStatus && remoteStream ? (
+                  hasRemoteVideoFeed ? (
                     <video
                       ref={(el) => {
                         remoteVideoRef.current = el;
-                        if (el && remoteStream && el.srcObject !== remoteStream) {
-                          el.srcObject = remoteStream;
-                          el.play().catch(e => console.warn("Remote play catch:", e));
-                        }
+                        safeAttachStream(el, remoteStream, true);
                       }}
                       autoPlay
                       playsInline
+                      muted
                       className="whatsapp-full-video"
                     />
                   ) : !inCall && peerEngine.localStream && !isCameraOff ? (
                     /* Outgoing video preview filling background while ringing */
                     <video
                       ref={(el) => {
-                        if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
-                          el.srcObject = peerEngine.localStream;
-                          el.play().catch(e => console.warn("Local play catch:", e));
-                        }
+                        safeAttachStream(el, peerEngine.localStream, true);
                       }}
                       autoPlay
                       playsInline
@@ -3167,10 +3502,8 @@ export default function App() {
                   peerEngine.localStream && !isCameraOff ? (
                     <video
                       ref={(el) => {
-                        if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
-                          el.srcObject = peerEngine.localStream;
-                          el.play().catch(e => console.warn("Local play catch:", e));
-                        }
+                        localVideoRef.current = el;
+                        safeAttachStream(el, peerEngine.localStream, true);
                       }}
                       autoPlay
                       playsInline
@@ -3198,10 +3531,7 @@ export default function App() {
                       <video
                         ref={(el) => {
                           localVideoRef.current = el;
-                          if (el && peerEngine.localStream && el.srcObject !== peerEngine.localStream) {
-                            el.srcObject = peerEngine.localStream;
-                            el.play().catch(e => console.warn("Local play catch:", e));
-                          }
+                          safeAttachStream(el, peerEngine.localStream, true);
                         }}
                         autoPlay
                         playsInline
@@ -3216,16 +3546,15 @@ export default function App() {
                     )
                   ) : (
                     /* PiP shows Remote Camera */
-                    remoteStream && remoteCameraStatus ? (
+                    hasRemoteVideoFeed ? (
                       <video
                         ref={(el) => {
-                          if (el && remoteStream && el.srcObject !== remoteStream) {
-                            el.srcObject = remoteStream;
-                            el.play().catch(e => console.warn("Remote play catch:", e));
-                          }
+                          remoteVideoRef.current = el;
+                          safeAttachStream(el, remoteStream, true);
                         }}
                         autoPlay
                         playsInline
+                        muted
                         className="whatsapp-pip-video"
                         style={{ transform: 'none' }}
                       />
@@ -3392,7 +3721,20 @@ export default function App() {
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {viewMode !== 'private' && (
+                <button
+                  className={`requests-header-btn ${incomingRequests.length > 0 ? 'has-requests' : ''}`}
+                  onClick={() => setShowRequestsModal(true)}
+                  title="Private Chat Requests"
+                >
+                  <UserPlus size={16} />
+                  <span>Requests</span>
+                  {incomingRequests.length > 0 && (
+                    <span className="requests-badge-pill">{incomingRequests.length}</span>
+                  )}
+                </button>
+              )}
               {viewMode === 'private' && status === 'connected' && (
                 <>
                   <button className={`icon-btn ${inCall ? 'active' : ''}`} onClick={() => initiateCall(true)} title="Secure Video Call">
