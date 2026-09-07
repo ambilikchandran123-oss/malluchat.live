@@ -37,12 +37,19 @@ jobs:
     - name: Build APK (Release)
       run: |
         cd malluchat_flutter
-        flutter build apk --release --verbose
+        flutter build apk --release --verbose 2>&1 | tee ../build_apk.log
 
     - name: Build AAB (Release)
       run: |
         cd malluchat_flutter
-        flutter build appbundle --release --verbose
+        flutter build appbundle --release --verbose 2>&1 | tee ../build_aab.log
+
+    - name: Upload Build Logs on Failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-failure-logs
+        path: "*.log"
 
     - name: Upload APK (For direct testing)
       uses: actions/upload-artifact@v4
