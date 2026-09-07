@@ -7,6 +7,18 @@ const __dirname = path.dirname(__filename);
 
 // Define metadata for all sub-routes to optimize SEO and prevent duplicate canonical penalties
 const routeMetadata = {
+  'mallu-strangers-chat': {
+    title: 'Mallu Strangers Chat - Chat with Strangers in Malayalam Online | MalluChat',
+    description: 'Join Mallu Strangers Chat on MalluChat.live. Talk and video call with random strangers in Kerala and worldwide. 100% free anonymous chat, zero registration.'
+  },
+  'mallu-stranger-chat': {
+    title: 'Mallu Stranger Chat Online - Free Anonymous Malayalam Chat Rooms | MalluChat',
+    description: 'Connect instantly on Mallu Stranger Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
+  },
+  'chat-with-strangers-in-mallu': {
+    title: 'Chat with Strangers in Mallu - Malayalam Strangers Chat & Video | MalluChat',
+    description: 'Looking to chat with strangers in Mallu? Join MalluChat for instant live Malayalam stranger chat rooms, P2P video calls, and anonymous messaging.'
+  },
   'mallu-chat-live': {
     title: 'Mallu Chat Live - Instant Anonymous Kerala Chat Rooms & Video Call | MalluChat',
     description: 'Experience Mallu Chat Live on MalluChat.live. Real-time live Malayalam chat rooms, instant stranger video calls, and zero registration.'
@@ -16,8 +28,8 @@ const routeMetadata = {
     description: 'Top-rated Malayalam chatting website for free Kerala chat rooms, stranger video calling, and live online Malayalam chat without logins.'
   },
   'strangers-mallu-chat': {
-    title: 'Mallu Stranger Chat Online - Free Anonymous Malayalam Chat | MalluChat',
-    description: 'Connect instantly on Mallu Stranger Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
+    title: 'Mallu Strangers Chat Online - Free Anonymous Malayalam Chat | MalluChat',
+    description: 'Connect instantly on Mallu Strangers Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
   },
   'mallu-free-video-call': {
     title: 'Mallu Free Video Calling Online - HD Stranger Calls | MalluChat',
