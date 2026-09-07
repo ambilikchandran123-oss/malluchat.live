@@ -12,23 +12,29 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Configure Git Safe Directory
+      run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
     - name: Set up Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
-        java-version: '21'
+        java-version: '17'
 
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
+        cache: true
 
     - name: Install dependencies and Generate Icons
       run: |
         cd malluchat_flutter
         flutter pub get
-        flutter pub run flutter_launcher_icons:main
+        dart run flutter_launcher_icons
 
     - name: Build APK (Release)
       run: |
