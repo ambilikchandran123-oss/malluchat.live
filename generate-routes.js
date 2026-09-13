@@ -7,6 +7,46 @@ const __dirname = path.dirname(__filename);
 
 // Define metadata for all sub-routes to optimize SEO and prevent duplicate canonical penalties
 const routeMetadata = {
+  'mallu-chat-rooms': {
+    title: 'Mallu Chat Rooms - Free Malayalam Online Chat Room & Kerala Chat | MalluChat',
+    description: 'Join Mallu Chat Rooms on MalluChat.live. Real-time Malayalam online chat rooms, Kerala group discussions, stranger video calls, and zero registration.'
+  },
+  'mallu-chat-room': {
+    title: 'Mallu Chat Room Online - Free Kerala Chat & Live Video Calls | MalluChat',
+    description: 'Best Mallu chat room online. Connect with Malayalees across Kerala and Gulf NRIs in instant free chat rooms with zero signup.'
+  },
+  'mallu-chatroom': {
+    title: 'Mallu Chatroom - Free Malayalam Chat Rooms Online | MalluChat',
+    description: 'Enter the live Mallu chatroom on MalluChat. Meet new Malayalam friends, join public Kerala lobbies, or start private video calls instantly.'
+  },
+  'mallu-video-call': {
+    title: 'Mallu Video Call Online - Free 1-on-1 Malayalam Video Chat | MalluChat',
+    description: 'Connect instantly for Mallu Video Call on MalluChat.live. Free 1-on-1 random video calls and voice chat for Malayalam speakers with zero registration.'
+  },
+  'mallu-open-chat': {
+    title: 'Mallu Open Chat - Free Malayalam Live Chat Online | MalluChat',
+    description: 'Experience Mallu Open Chat on MalluChat.live. Fast, open Malayalam chat rooms, stranger connections, and instant video calling with zero signups.'
+  },
+  'mallu-chat-live': {
+    title: 'Mallu Chat Live - Instant Malayalam Chat Rooms & Video Call | MalluChat',
+    description: 'Experience Mallu Chat Live on MalluChat.live. Real-time live Malayalam chat rooms, instant stranger video calls, and zero registration.'
+  },
+  'mallu-chatting-website': {
+    title: 'Mallu Chat Website - Free Malayalam Chatting Website & Video Call | MalluChat',
+    description: 'Ranked #1 Mallu chat website and Malayalam chatting website. Join free Kerala chat rooms, live voice, and random video calls with zero registration.'
+  },
+  'mallu-free-video-call': {
+    title: 'Mallu Video Call Free - Malayalam Free Video Calling Website | MalluChat',
+    description: 'Start a Mallu video call free on MalluChat. High-definition 1-on-1 random Malayalam video calls with zero coins, downloads, or registration.'
+  },
+  'mallu-random-video-call': {
+    title: 'Mallu Random Video Call Online - Kerala Stranger Match | MalluChat',
+    description: 'Instant Mallu random video calling. Connect 1-on-1 with Malayalam strangers for live video calls and encrypted chat.'
+  },
+  'malayalam-chatting-website': {
+    title: 'Malayalam Chatting Website - Free Kerala Online Chat & Video Call | MalluChat',
+    description: 'Top-rated Malayalam chatting website for free Kerala chat rooms, stranger video calling, and live online Malayalam chat without logins.'
+  },
   'mallu-strangers-chat': {
     title: 'Mallu Strangers Chat - Chat with Strangers in Malayalam Online | MalluChat',
     description: 'Join Mallu Strangers Chat on MalluChat.live. Talk and video call with random strangers in Kerala and worldwide. 100% free anonymous chat, zero registration.'
@@ -15,33 +55,13 @@ const routeMetadata = {
     title: 'Mallu Stranger Chat Online - Free Anonymous Malayalam Chat Rooms | MalluChat',
     description: 'Connect instantly on Mallu Stranger Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
   },
-  'chat-with-strangers-in-mallu': {
-    title: 'Chat with Strangers in Mallu - Malayalam Strangers Chat & Video | MalluChat',
-    description: 'Looking to chat with strangers in Mallu? Join MalluChat for instant live Malayalam stranger chat rooms, P2P video calls, and anonymous messaging.'
-  },
-  'mallu-chat-live': {
-    title: 'Mallu Chat Live - Instant Anonymous Kerala Chat Rooms & Video Call | MalluChat',
-    description: 'Experience Mallu Chat Live on MalluChat.live. Real-time live Malayalam chat rooms, instant stranger video calls, and zero registration.'
-  },
-  'malayalam-chatting-website': {
-    title: 'Malayalam Chatting Website - Free Kerala Online Chat & Video Call | MalluChat',
-    description: 'Top-rated Malayalam chatting website for free Kerala chat rooms, stranger video calling, and live online Malayalam chat without logins.'
-  },
   'strangers-mallu-chat': {
     title: 'Mallu Strangers Chat Online - Free Anonymous Malayalam Chat | MalluChat',
     description: 'Connect instantly on Mallu Strangers Chat. Enjoy free anonymous Malayalam text chat rooms and encrypted stranger video calls without registration.'
   },
-  'mallu-free-video-call': {
-    title: 'Mallu Free Video Calling Online - HD Stranger Calls | MalluChat',
-    description: 'Top-rated Mallu free video calling platform. High-definition 1-on-1 random video calls for Malayalam speakers in Kerala and worldwide.'
-  },
-  'mallu-random-video-call': {
-    title: 'Mallu Random Video Call Online - Kerala Stranger Match | MalluChat',
-    description: 'Instant Mallu random video calling. Connect 1-on-1 with Malayalam strangers for live video calls and encrypted chat.'
-  },
-  'mallu-chatting-website': {
-    title: 'Mallu Chat Online - Free Kerala Chat Rooms & Video Calls | MalluChat',
-    description: 'Best Mallu chat online website for Malayalis. Enjoy anonymous chat rooms, voice calling, and stranger video chat with zero logins.'
+  'chat-with-strangers-in-mallu': {
+    title: 'Chat with Strangers in Mallu - Malayalam Strangers Chat & Video | MalluChat',
+    description: 'Looking to chat with strangers in Mallu? Join MalluChat for instant live Malayalam stranger chat rooms, P2P video calls, and anonymous messaging.'
   },
   'malayalam-chat-online': {
     title: 'Malayalam Chat Online - Meet Kerala Strangers & Chat Rooms | MalluChat',

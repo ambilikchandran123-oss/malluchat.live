@@ -3,7 +3,21 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { PrivacyPage, TermsPage, AUPPage, DisclaimerPage } from './LegalPages.tsx'
-import { MalluChattingAppPage, MalluTelegramChattingPage, TelegramAlternativeGroupChatPage, MalayalamChatOnlinePage, MalluFreeVideoCallPage, StrangersMalluChatPage, MalluChattingWebsitePage, MalluRandomVideoCallPage, MalluChatLivePage, MalayalamChattingWebsitePage } from './SeoPages.tsx'
+import { 
+  MalluChattingAppPage, 
+  MalluTelegramChattingPage, 
+  TelegramAlternativeGroupChatPage, 
+  MalayalamChatOnlinePage, 
+  MalluFreeVideoCallPage, 
+  StrangersMalluChatPage, 
+  MalluChattingWebsitePage, 
+  MalluRandomVideoCallPage, 
+  MalluChatLivePage, 
+  MalayalamChattingWebsitePage,
+  MalluChatRoomsPage,
+  MalluVideoCallPage,
+  MalluOpenChatPage
+} from './SeoPages.tsx'
 const path = window.location.pathname;
 const isBaseRoute = path === '/' || path.endsWith('/malluchat/') || path.endsWith('/malluchat');
 let ComponentToRender = App;
@@ -12,6 +26,9 @@ if (path.includes('/privacy')) ComponentToRender = PrivacyPage;
 if (path.includes('/terms')) ComponentToRender = TermsPage;
 if (path.includes('/aup')) ComponentToRender = AUPPage;
 if (path.includes('/disclaimer')) ComponentToRender = DisclaimerPage;
+if (path.includes('/mallu-chat-rooms') || path.includes('/mallu-chat-room') || path.includes('/mallu-chatroom')) ComponentToRender = MalluChatRoomsPage;
+if (path.includes('/mallu-video-call') && !path.includes('/mallu-free-video-call') && !path.includes('/mallu-random-video-call')) ComponentToRender = MalluVideoCallPage;
+if (path.includes('/mallu-open-chat') || path.includes('/open-chat-mallu') || path.includes('/mallu-openchat')) ComponentToRender = MalluOpenChatPage;
 if (path.includes('/mallu-chatting-app')) ComponentToRender = MalluChattingAppPage;
 if (path.includes('/mallu-telegram-chatting')) ComponentToRender = MalluTelegramChattingPage;
 if (path.includes('/telegram-alternative-group-chat')) ComponentToRender = TelegramAlternativeGroupChatPage;

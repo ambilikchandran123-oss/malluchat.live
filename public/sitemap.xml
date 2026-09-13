@@ -2,110 +2,123 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://malluchat.live/</loc>
-    <lastmod>2026-09-07</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>always</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://malluchat.live/mallu-strangers-chat</loc>
-    <lastmod>2026-09-07</lastmod>
+    <loc>https://malluchat.live/mallu-chat-rooms</loc>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>always</changefreq>
-    <priority>1.0</priority>
+    <priority>0.99</priority>
   </url>
   <url>
-    <loc>https://malluchat.live/strangers-mallu-chat</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.98</priority>
-  </url>
-  <url>
-    <loc>https://malluchat.live/mallu-stranger-chat</loc>
-    <lastmod>2026-09-07</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.98</priority>
+    <loc>https://malluchat.live/mallu-video-call</loc>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>always</changefreq>
+    <priority>0.99</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-chat-live</loc>
-    <lastmod>2026-09-07</lastmod>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+  </url>
+  <url>
+    <loc>https://malluchat.live/mallu-open-chat</loc>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.98</priority>
   </url>
   <url>
     <loc>https://malluchat.live/malayalam-chatting-website</loc>
-    <lastmod>2026-09-07</lastmod>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.98</priority>
+  </url>
+  <url>
+    <loc>https://malluchat.live/mallu-strangers-chat</loc>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.98</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-free-video-call</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://malluchat.live/malayalam-chat-online</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://malluchat.live/strangers-mallu-chat</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+  </url>
+  <url>
+    <loc>https://malluchat.live/mallu-stranger-chat</loc>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-chatting-website</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-random-video-call</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-chatting-app</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://malluchat.live/mallu-telegram-chatting</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://malluchat.live/telegram-alternative-group-chat</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
     <loc>https://malluchat.live/privacy</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://malluchat.live/terms</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
     <loc>https://malluchat.live/aup</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://malluchat.live/disclaimer</loc>
-    <lastmod>2026-09-01</lastmod>
+    <lastmod>2026-09-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
 </urlset>
+
