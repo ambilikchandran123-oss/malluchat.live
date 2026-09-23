@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle, CheckCircle2 } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -2829,34 +2829,6 @@ Thank you!`
                 ? 'Unlock Female & Male gender filters to call exactly who you want.'
                 : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
-
-            {/* How to Make Payment - Clear Step-by-Step Instructions */}
-            <div className="payment-instructions-card">
-              <div className="payment-instructions-header">
-                <CheckCircle2 size={18} color="var(--primary)" />
-                <span>How to Make Payment &amp; Unlock Calling</span>
-              </div>
-              <div className="payment-instructions-steps">
-                <div className="instruction-step">
-                  <div className="instruction-step-num">1</div>
-                  <div className="instruction-step-body">
-                    <strong>Choose a Plan:</strong> Select 1 Day Pass (₹60), Monthly (₹100), or VIP Gold (₹150) below.
-                  </div>
-                </div>
-                <div className="instruction-step">
-                  <div className="instruction-step-num">2</div>
-                  <div className="instruction-step-body">
-                    <strong>Scan QR or Pay UPI:</strong> Pay the exact amount using Google Pay, PhonePe, Paytm, or BHIM to UPI ID: <code>{targetUpiId}</code>.
-                  </div>
-                </div>
-                <div className="instruction-step">
-                  <div className="instruction-step-num">3</div>
-                  <div className="instruction-step-body">
-                    <strong>Upload Screenshot:</strong> Upload your transaction screenshot below and submit for manual verification within 24 hours.
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Plans Selection Grid */}
             <div className="plans-grid">

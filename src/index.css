@@ -2278,74 +2278,6 @@ body {
   75% { transform: translateX(4px); }
 }
 
-/* Payment Instructions Card */
-.payment-instructions-card {
-  background: rgba(16, 185, 129, 0.06);
-  border: 1px solid rgba(16, 185, 129, 0.22);
-  border-radius: 16px;
-  padding: 12px 14px;
-  margin: 12px 0 16px 0;
-  text-align: left;
-  backdrop-filter: blur(8px);
-}
-
-.payment-instructions-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  color: var(--primary);
-  font-weight: 700;
-  font-size: 0.88rem;
-}
-
-.payment-instructions-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.instruction-step {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.instruction-step-num {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: black;
-  font-weight: 800;
-  font-size: 0.72rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.instruction-step-body {
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-.instruction-step-body strong {
-  color: var(--text-main);
-  display: inline;
-  margin-right: 4px;
-}
-
-.instruction-step-body code {
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 5px;
-  border-radius: 4px;
-  color: var(--primary);
-  font-family: monospace;
-}
-
 /* Small Payment Help Toggle Button */
 .payment-help-toggle-btn {
   background: rgba(255, 255, 255, 0.05);
@@ -3122,32 +3054,6 @@ body {
     font-size: 0.5rem !important;
     padding: 2px 5px !important;
     top: -8px !important;
-  }
-
-  .payment-instructions-card {
-    padding: 10px !important;
-    margin: 8px 0 10px 0 !important;
-    border-radius: 12px !important;
-  }
-
-  .payment-instructions-header {
-    font-size: 0.82rem !important;
-    margin-bottom: 6px !important;
-  }
-
-  .instruction-step {
-    gap: 8px !important;
-  }
-
-  .instruction-step-num {
-    width: 18px !important;
-    height: 18px !important;
-    font-size: 0.65rem !important;
-  }
-
-  .instruction-step-body {
-    font-size: 0.73rem !important;
-    line-height: 1.35 !important;
   }
 
   .payment-details-panel {
