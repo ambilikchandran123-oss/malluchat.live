@@ -3794,7 +3794,7 @@ export default function App() {
           <div className="chat-header">
             <div className="header-user-info">
               <div className="avatar">
-                <MalluLogo size={32} />
+                <MalluLogo size={36} />
               </div>
               <div className="header-title-wrap">
                 {viewMode === 'private' ? (
