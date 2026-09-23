@@ -407,11 +407,7 @@ export default function App() {
   const [, setLocationSource] = useState<'GPS' | 'Network' | 'Default'>('Default');
   const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
   const [showPaywall, setShowPaywall] = useState<boolean>(false);
-  const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>({
-    amount: 100,
-    duration: '1 Month',
-    label: 'Monthly Pack'
-  });
+  const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
   const [screenshotFileName, setScreenshotFileName] = useState<string>('');
   const [verificationSubmitted, setVerificationSubmitted] = useState<boolean>(false);
@@ -1151,6 +1147,7 @@ export default function App() {
       // If not premium, manual calls to demo users always trigger the paywall!
       const timeout = setTimeout(() => {
         setPaywallTriggerReason('calling');
+        setSelectedPlan(null);
         setShowPaywall(true);
         ringtone.stop();
       }, 1800);
@@ -1387,6 +1384,7 @@ export default function App() {
     } else {
       setPaywallTriggerReason('filter');
       setActiveCallingUser({ id: 'dummy-filter', name: filter === 'female' ? 'Females Only' : 'Males Only', avatar: '⭐', gender: filter });
+      setSelectedPlan(null);
       setShowPaywall(true);
     }
   };
@@ -1542,8 +1540,6 @@ export default function App() {
 
     const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
     setCurrentTxnId(newTxnId);
-
-    downloadUpiQrCode(plan.amount, plan.label, newTxnId);
   };
 
   const handleCopyUpi = () => {
@@ -2790,65 +2786,58 @@ export default function App() {
               ))}
             </div>
 
-            {/* Payment VPA Settings Panel (collapsible developer option) */}
-            <div style={{ marginTop: '10px', marginBottom: '10px', textAlign: 'left' }}>
-              <button
-                onClick={() => setShowPaymentSettings(!showPaymentSettings)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '0.75rem',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: 0
-                }}
-              >
-                {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
-              </button>
+            {/* Hint shown when no plan price has been selected yet */}
+            {!selectedPlan && (
+              <div style={{
+                margin: '18px 0 14px',
+                padding: '14px 16px',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px dashed rgba(255, 255, 255, 0.18)',
+                borderRadius: '14px',
+                textAlign: 'center',
+                color: 'var(--text-muted)',
+                fontSize: '0.86rem',
+                lineHeight: 1.45
+              }}>
+                👆 <strong>Tap a price plan above</strong> to view QR code and payment options.
+              </div>
+            )}
 
-              {showPaymentSettings && (
-                <div style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  marginTop: '8px',
-                  animation: 'fadeIn 0.2s ease-out'
-                }}>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Receiver UPI ID (VPA) for testing:
-                  </label>
-                  <input
-                    type="text"
-                    value={targetUpiId}
-                    onChange={(e) => setTargetUpiId(e.target.value.trim())}
-                    placeholder="Enter UPI ID (e.g. name@okaxis)"
-                    style={{
-                      width: '100%',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontSize: '0.8rem',
-                      color: 'var(--text-main)',
-                      outline: 'none'
-                    }}
-                  />
-                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Change this to your own personal UPI VPA (e.g. `yourname@paytm`) to verify the links and QR codes work.
-                  </div>
-                </div>
-              )}
-            </div>
-
+            {/* Payment Details Panel - Only shown AFTER clicking a plan price */}
             {selectedPlan && (
               <div className="payment-details-panel">
-                <div style={{ fontSize: '0.92rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
+                <div style={{ fontSize: '0.94rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
                   Scan QR Code or Pay via UPI
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
-                  ⚠️ Pay exactly ₹{selectedPlan.amount} (Transaction will show ₹{selectedPlan.amount})
+                <div style={{ fontSize: '0.82rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
+                  ⚠️ Pay exactly ₹{selectedPlan.amount} ({selectedPlan.duration} - {selectedPlan.label})
+                </div>
+
+                {/* Direct Pay via UPI App button for smartphones */}
+                <div style={{ marginBottom: '14px', width: '100%' }}>
+                  <a
+                    href={`upi://pay?pa=${encodeURIComponent(targetUpiId)}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=${selectedPlan.amount}&cu=INR&tn=MalluChat%20Plan%20${encodeURIComponent(selectedPlan.label)}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: '#ffffff',
+                      textDecoration: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.94rem',
+                      padding: '11px 16px',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
+                      transition: 'transform 0.15s ease'
+                    }}
+                  >
+                    <span>⚡ Pay ₹{selectedPlan.amount} via UPI App</span>
+                  </a>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '5px', textAlign: 'center' }}>
+                    Opens Google Pay, PhonePe, Paytm, or BHIM directly
+                  </div>
                 </div>
 
                 {/* Collapsible QR Code Section */}
@@ -3032,7 +3021,7 @@ export default function App() {
             )}
 
             {/* Help / Payment Issues button navigating to dedicated page */}
-            <div style={{ marginTop: '14px', marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+            <div style={{ marginTop: '14px', marginBottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <a
                 href="/payment-help"
                 target="_blank"
@@ -3049,6 +3038,56 @@ export default function App() {
                 <span>Help / Payment Issues?</span>
                 <ExternalLink size={12} style={{ opacity: 0.8 }} />
               </a>
+
+              {/* Developer UPI ID setting toggle */}
+              <button
+                onClick={() => setShowPaymentSettings(!showPaymentSettings)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.68rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  opacity: 0.6
+                }}
+              >
+                {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
+              </button>
+
+              {showPaymentSettings && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  width: '100%',
+                  marginTop: '4px',
+                  textAlign: 'left',
+                  animation: 'fadeIn 0.2s ease-out'
+                }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Receiver UPI ID (VPA):
+                  </label>
+                  <input
+                    type="text"
+                    value={targetUpiId}
+                    onChange={(e) => setTargetUpiId(e.target.value.trim())}
+                    placeholder="Enter UPI ID (e.g. name@okaxis)"
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-main)',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
