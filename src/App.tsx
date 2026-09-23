@@ -2762,12 +2762,12 @@ export default function App() {
                 : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
 
-            {/* Plans Selection Grid */}
+            {/* Plans Selection Grid (Vertical Stack) */}
             <div className="plans-grid">
               {[
                 { amount: 60, duration: '1 Day', label: '1 Day Pass', type: 'standard', badge: '' },
-                { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'Popular' },
-                { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 Best Value' }
+                { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'POPULAR' },
+                { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 BEST VALUE' }
               ].map((plan) => (
                 <div
                   key={plan.amount}
@@ -2785,23 +2785,6 @@ export default function App() {
                 </div>
               ))}
             </div>
-
-            {/* Hint shown when no plan price has been selected yet */}
-            {!selectedPlan && (
-              <div style={{
-                margin: '18px 0 14px',
-                padding: '14px 16px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px dashed rgba(255, 255, 255, 0.18)',
-                borderRadius: '14px',
-                textAlign: 'center',
-                color: 'var(--text-muted)',
-                fontSize: '0.86rem',
-                lineHeight: 1.45
-              }}>
-                👆 <strong>Tap a price plan above</strong> to view QR code and payment options.
-              </div>
-            )}
 
             {/* Payment Details Panel - Only shown AFTER clicking a plan price */}
             {selectedPlan && (
@@ -3020,41 +3003,42 @@ export default function App() {
               </div>
             )}
 
-            {/* Help / Payment Issues button navigating to dedicated page */}
-            <div style={{ marginTop: '14px', marginBottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <a
-                href="/payment-help"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="payment-help-toggle-btn"
-                style={{
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <HelpCircle size={14} />
-                <span>Help / Payment Issues?</span>
-                <ExternalLink size={12} style={{ opacity: 0.8 }} />
-              </a>
-
-              {/* Developer UPI ID setting toggle */}
+            {/* Bottom Links matching screenshot 1 */}
+            <div style={{ marginTop: '16px', marginBottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
               <button
                 onClick={() => setShowPaymentSettings(!showPaymentSettings)}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.68rem',
+                  color: 'var(--primary)',
+                  fontSize: '0.76rem',
                   textDecoration: 'underline',
                   cursor: 'pointer',
-                  padding: '2px',
-                  opacity: 0.6
+                  padding: '2px'
                 }}
               >
                 {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
               </button>
+
+              <a
+                href="/payment-help"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  textDecoration: 'underline',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  opacity: 0.75,
+                  marginTop: '2px'
+                }}
+              >
+                <HelpCircle size={12} />
+                <span>Help / Payment Issues?</span>
+                <ExternalLink size={10} />
+              </a>
 
               {showPaymentSettings && (
                 <div style={{
