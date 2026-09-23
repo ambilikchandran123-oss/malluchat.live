@@ -3314,7 +3314,7 @@ Thank you!`
         {/* Login Modal */}
         {showLoginModal && (
           <div className="call-overlay" style={{ zIndex: 2000 }}>
-            <div className="glass" style={{ padding: '2rem', borderRadius: '16px', maxWidth: '350px', width: '90%', textAlign: 'center', position: 'relative' }}>
+            <div className="glass join-modal-card">
               <button
                 className="icon-btn"
                 style={{ position: 'absolute', top: '15px', right: '15px' }}
@@ -3989,13 +3989,13 @@ Thank you!`
               <div className="avatar">
                 <MalluLogo size={32} />
               </div>
-              <div style={{ marginLeft: '6px' }}>
+              <div className="header-title-wrap">
                 {viewMode === 'private' ? (
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--primary)' }}>
+                  <div className="header-user-name" style={{ color: 'var(--primary)' }}>
                     {remoteUsername}
                   </div>
                 ) : (
-                  <div style={{ fontWeight: 600 }}>
+                  <div className="header-user-name">
                     {viewMode === 'public'
                       ? 'Mallu Public Chat'
                       : 'Nearby Users'}
@@ -4387,7 +4387,7 @@ Thank you!`
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <div className="chat-input-controls-row">
                 {isRecording ? (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>
                     <button className="icon-btn" onClick={cancelRecording} title="Cancel Recording" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', padding: '10px', borderRadius: '50%' }}>
