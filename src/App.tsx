@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, HelpCircle, ExternalLink } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -388,6 +388,13 @@ export default function App() {
 
   // Premium paywall states
   const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setIsPremium(localStorage.getItem('malluchat_premium') === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
   const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
@@ -409,16 +416,10 @@ export default function App() {
   const [screenshotFileName, setScreenshotFileName] = useState<string>('');
   const [verificationSubmitted, setVerificationSubmitted] = useState<boolean>(false);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
-  const [copiedSupportEmail, setCopiedSupportEmail] = useState<boolean>(false);
   const [targetUpiId, setTargetUpiId] = useState<string>('BHARATPE2J0A0P6U4O28675@unitype');
   const [showPaymentSettings, setShowPaymentSettings] = useState<boolean>(false);
   const [showQrCode, setShowQrCode] = useState<boolean>(true);
   const [currentTxnId, setCurrentTxnId] = useState<string>('');
-  const [redeemTokenInput, setRedeemTokenInput] = useState<string>('');
-  const [redeemError, setRedeemError] = useState<string>('');
-  const [tokenSubmittedMsg, setTokenSubmittedMsg] = useState<string>('');
-  const [showMailHelper, setShowMailHelper] = useState<boolean>(false);
-  const [showPaymentHelp, setShowPaymentHelp] = useState<boolean>(false);
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
   const ringingTimeoutRef = useRef<any>(null);
   ringingTimeoutRef.current = ringingTimeout;
@@ -1531,71 +1532,6 @@ export default function App() {
     } catch (e) {
       console.error("Failed to download QR code image", e);
     }
-  };
-
-  const handleCopySupportEmail = () => {
-    navigator.clipboard.writeText('teamtwingle@gmail.com');
-    setCopiedSupportEmail(true);
-    setTimeout(() => setCopiedSupportEmail(false), 2500);
-  };
-
-  const handleOpenCustomerCareMail = () => {
-    const supportEmail = 'teamtwingle@gmail.com';
-    const planText = selectedPlan ? `${selectedPlan.label} (₹${selectedPlan.amount})` : 'Free Calling Token / VIP Pass';
-    const subject = encodeURIComponent(`MalluChat Payment Verification & Token Request - [User: ${username || 'Guest'} | ID: ${myId.slice(0, 8)}]`);
-    const body = encodeURIComponent(
-`Hello MalluChat Support Team,
-
-I need manual payment verification / faced a payment error on MalluChat and would like to receive my unique calling token.
-
---- My Payment & Account Details ---
-• Username: ${username || 'Anonymous User'}
-• User ID: ${myId}
-• Plan Selected: ${planText}
-• Date & Time: ${new Date().toLocaleString()}
-• UPI UTR / Reference ID: [Write your 12-digit UPI UTR number here]
-• Payment Status: [Money Deducted / Transaction Pending / Payment Error]
-
-⚠️ Notice: I acknowledge that all payments are non-refundable and will be credited as free calling tokens/VIP access for use on this website.
-
-[IMPORTANT]: I have attached my payment screenshot to this email as proof of payment. Please verify my payment and send me my unique calling token number!
-
-Thank you!`
-    );
-
-    const mailtoUrl = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
-    setShowMailHelper(true);
-    window.location.href = mailtoUrl;
-  };
-
-  const handleApplyRedeemToken = () => {
-    const token = redeemTokenInput.trim();
-    if (!token) {
-      setRedeemError('Please enter the token number received from teamtwingle@gmail.com.');
-      return;
-    }
-
-    if (token.length < 4) {
-      setRedeemError('Invalid token format. Please check the token number sent to your email.');
-      return;
-    }
-
-    setRedeemError('');
-
-    // Optional admin bypass token for owner testing
-    if (token.toUpperCase() === 'TWINGLEVIP' || token.toUpperCase() === 'ADMIN2026') {
-      setIsPremium(true);
-      localStorage.setItem('malluchat_premium', 'true');
-      setShowPaywall(false);
-      alert('🎉 VIP Master Token verified! Calling access unlocked.');
-      return;
-    }
-
-    localStorage.setItem('malluchat_submitted_token', token);
-    setRedeemTokenInput('');
-    setTokenSubmittedMsg(`Token "${token}" submitted successfully! Please wait up to 24 hours for verification and activation by our team.`);
-
-    alert(`Unique Token "${token}" submitted successfully! Please wait up to 24 hours for verification and activation.`);
   };
 
   const handleSelectPlan = (plan: { amount: number; duration: string; label: string }) => {
@@ -3066,9 +3002,10 @@ Thank you!`
                           <span style={{ fontSize: '0.78rem', color: '#fca5a5' }}>
                             Facing a delay or error?
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setShowPaymentHelp(true)}
+                          <a
+                            href="/payment-help"
+                            target="_blank"
+                            rel="noopener noreferrer"
                             style={{
                               background: 'rgba(239, 68, 68, 0.2)',
                               border: '1px solid rgba(239, 68, 68, 0.4)',
@@ -3077,11 +3014,15 @@ Thank you!`
                               borderRadius: '6px',
                               fontSize: '0.72rem',
                               fontWeight: 700,
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
                             }}
                           >
-                            Open Help
-                          </button>
+                            Open Help <ExternalLink size={10} />
+                          </a>
                         </div>
                       )}
                     </div>
@@ -3090,159 +3031,25 @@ Thank you!`
               </div>
             )}
 
-            {/* Small Help Button to toggle Manual Verification, Email & Token details */}
-            <div style={{ marginTop: '14px', marginBottom: showPaymentHelp ? '10px' : '4px', display: 'flex', justifyContent: 'center' }}>
-              <button
-                type="button"
-                onClick={() => setShowPaymentHelp(!showPaymentHelp)}
-                className={`payment-help-toggle-btn ${showPaymentHelp ? 'active' : ''}`}
+            {/* Help / Payment Issues button navigating to dedicated page */}
+            <div style={{ marginTop: '14px', marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+              <a
+                href="/payment-help"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="payment-help-toggle-btn"
+                style={{
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
               >
                 <HelpCircle size={14} />
-                <span>{showPaymentHelp ? 'Hide Payment Help' : 'Help / Payment Issues?'}</span>
-                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>{showPaymentHelp ? '▲' : '▼'}</span>
-              </button>
+                <span>Help / Payment Issues?</span>
+                <ExternalLink size={12} style={{ opacity: 0.8 }} />
+              </a>
             </div>
-
-            {/* Collapsible Payment Error / Manual Verification & Customer Care Section */}
-            {showPaymentHelp && (
-              <div className="payment-support-card">
-              <div className="payment-support-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Headphones size={20} color="var(--primary)" />
-                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-                    Payment Issues &amp; Manual Verification
-                  </span>
-                </div>
-                <span className="support-badge">Helpdesk</span>
-              </div>
-
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '8px 0', lineHeight: 1.5, textAlign: 'left' }}>
-                If you face payment errors, transaction timeouts, or bank deduction without instant activation, our support team will manually verify your payment and provide a <strong>unique token number</strong> for free calling tokens.
-              </p>
-
-              {/* No Refund Policy Notice */}
-              <div className="no-refund-notice">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, marginBottom: '4px' }}>
-                  <ShieldAlert size={15} />
-                  <span>Important: No Refund Policy</span>
-                </div>
-                <span>
-                  All payments are strictly non-refundable. Amount paid will be credited as free calling tokens &amp; VIP access exclusively for use on this website.
-                </span>
-              </div>
-
-
-              {/* One-Click Customer Care Action Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  className="customer-care-btn"
-                  onClick={handleOpenCustomerCareMail}
-                >
-                  <Mail size={16} />
-                  <span>One-Click Customer Care (Email Support)</span>
-                </button>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', width: '100%' }}>
-                  <div style={{
-                    flex: '1 1 180px',
-                    minWidth: 0,
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    fontSize: '0.78rem',
-                    color: 'var(--primary)',
-                    fontFamily: 'monospace',
-                    textAlign: 'left',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    teamtwingle@gmail.com
-                  </div>
-                  <button
-                    type="button"
-                    className="copy-mail-btn"
-                    onClick={handleCopySupportEmail}
-                    style={{ flex: '0 0 auto' }}
-                  >
-                    <Copy size={13} />
-                    <span>{copiedSupportEmail ? 'Copied!' : 'Copy Email'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Mail Helper Notice Popup */}
-              {showMailHelper && (
-                <div style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  borderRadius: '12px',
-                  padding: '10px 12px',
-                  marginTop: '10px',
-                  fontSize: '0.78rem',
-                  color: '#6ee7b7',
-                  textAlign: 'left',
-                  lineHeight: 1.45
-                }}>
-                  ✅ <strong>Email draft generated!</strong> Please attach your payment screenshot before sending to <strong>teamtwingle@gmail.com</strong>.
-                </div>
-              )}
-
-              {/* Redeem Unique Token Box */}
-              <div className="token-redeem-container">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
-                  <KeyRound size={15} color="#fbbf24" />
-                  <span>Have a Token Number from Support?</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'left' }}>
-                  Enter your unique token number received from <code>teamtwingle@gmail.com</code>:
-                </div>
-                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                  <input
-                    type="text"
-                    value={redeemTokenInput}
-                    onChange={(e) => {
-                      setRedeemTokenInput(e.target.value);
-                      if (redeemError) setRedeemError('');
-                    }}
-                    placeholder="Enter Token (e.g. MC-98234)"
-                    className="token-input"
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <button
-                    type="button"
-                    className="redeem-btn"
-                    onClick={handleApplyRedeemToken}
-                    style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
-                  >
-                    Submit Token
-                  </button>
-                </div>
-                {redeemError && (
-                  <div style={{ color: '#f87171', fontSize: '0.72rem', marginTop: '4px', textAlign: 'left' }}>
-                    {redeemError}
-                  </div>
-                )}
-                {tokenSubmittedMsg && (
-                  <div style={{
-                    color: '#fbbf24',
-                    background: 'rgba(251, 191, 36, 0.1)',
-                    border: '1px solid rgba(251, 191, 36, 0.25)',
-                    borderRadius: '8px',
-                    padding: '8px 10px',
-                    fontSize: '0.78rem',
-                    marginTop: '8px',
-                    textAlign: 'left',
-                    lineHeight: 1.45
-                  }}>
-                    ⏳ <strong>Verification in progress:</strong> {tokenSubmittedMsg}
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
           </div>
         </div>
       )}
