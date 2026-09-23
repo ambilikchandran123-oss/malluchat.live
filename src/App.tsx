@@ -2909,7 +2909,7 @@ Thank you!`
             {selectedPlan && (
               <div className="payment-details-panel">
                 <div style={{ fontSize: '0.92rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
-                  Step 2: Scan QR Code or Pay via UPI
+                  Scan QR Code or Pay via UPI
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
                   ⚠️ Pay exactly ₹{selectedPlan.amount} (Transaction will show ₹{selectedPlan.amount})
@@ -2996,7 +2996,7 @@ Thank you!`
 
             {selectedPlan && (
               <div className="verification-section">
-                <h4>Step 3: Upload Payment Screenshot</h4>
+                <h4>Upload Payment Screenshot</h4>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', marginTop: '-4px' }}>
                   Upload your transaction confirmation screenshot showing the UPI Reference / UTR number for manual verification.
                 </p>
@@ -3131,15 +3131,6 @@ Thank you!`
                 </span>
               </div>
 
-              {/* Step instructions */}
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-main)', textAlign: 'left', margin: '10px 0', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <strong>How to get your Unique Calling Token:</strong>
-                <ol style={{ margin: '6px 0 0 16px', padding: 0, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  <li>Click the Customer Care button below to open a pre-filled email.</li>
-                  <li>Attach your <strong>payment screenshot</strong> and mention your <strong>UPI UTR / Reference ID</strong>.</li>
-                  <li>Our team will reply with your <strong>unique token number</strong> for the exact value of your money.</li>
-                </ol>
-              </div>
 
               {/* One-Click Customer Care Action Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
