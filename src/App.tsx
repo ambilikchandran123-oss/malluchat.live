@@ -2979,14 +2979,15 @@ Thank you!`
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'left', fontWeight: 600 }}>
                     Or manually transfer to UPI ID:
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', width: '100%' }}>
                     <div style={{
-                      flex: 1,
+                      flex: '1 1 180px',
+                      minWidth: 0,
                       background: 'rgba(0, 0, 0, 0.4)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '8px',
-                      padding: '8px 12px',
-                      fontSize: '0.8rem',
+                      padding: '8px 10px',
+                      fontSize: '0.78rem',
                       fontFamily: 'monospace',
                       color: 'var(--text-main)',
                       overflow: 'hidden',
@@ -2998,12 +2999,13 @@ Thank you!`
                     <button
                       onClick={handleCopyUpi}
                       style={{
+                        flex: '0 0 auto',
                         background: copiedUpi ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
                         border: '1px solid rgba(255, 255, 255, 0.2)',
                         borderRadius: '8px',
                         color: copiedUpi ? 'black' : 'var(--text-main)',
-                        padding: '8px 16px',
-                        fontSize: '0.8rem',
+                        padding: '8px 14px',
+                        fontSize: '0.78rem',
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -3174,13 +3176,14 @@ Thank you!`
                   className="customer-care-btn"
                   onClick={handleOpenCustomerCareMail}
                 >
-                  <Mail size={18} />
-                  <span>One-Click Customer Care (Mail teamtwingle@gmail.com)</span>
+                  <Mail size={16} />
+                  <span>One-Click Customer Care (Email Support)</span>
                 </button>
 
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center', width: '100%' }}>
                   <div style={{
-                    flex: 1,
+                    flex: '1 1 180px',
+                    minWidth: 0,
                     background: 'rgba(0, 0, 0, 0.4)',
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '8px',
@@ -3199,6 +3202,7 @@ Thank you!`
                     type="button"
                     className="copy-mail-btn"
                     onClick={handleCopySupportEmail}
+                    style={{ flex: '0 0 auto' }}
                   >
                     <Copy size={13} />
                     <span>{copiedSupportEmail ? 'Copied!' : 'Copy Email'}</span>
@@ -3232,7 +3236,7 @@ Thank you!`
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'left' }}>
                   Enter your unique token number received from <code>teamtwingle@gmail.com</code>:
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                   <input
                     type="text"
                     value={redeemTokenInput}
@@ -3242,11 +3246,13 @@ Thank you!`
                     }}
                     placeholder="Enter Token (e.g. MC-98234)"
                     className="token-input"
+                    style={{ flex: 1, minWidth: 0 }}
                   />
                   <button
                     type="button"
                     className="redeem-btn"
                     onClick={handleApplyRedeemToken}
+                    style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}
                   >
                     Submit Token
                   </button>
