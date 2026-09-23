@@ -4524,7 +4524,7 @@ Thank you!`
           {/* Bottom Navigation Bar */}
           <div className="bottom-bar-nav">
             <div className={`nav-item ${viewMode === 'public' ? 'active' : ''}`} onClick={() => setViewMode('public')}>
-              <Users size={24} />
+              <Users size={22} />
               World
             </div>
             <div className={`nav-item ${viewMode === 'random' ? 'active' : ''}`} onClick={() => {
@@ -4534,12 +4534,12 @@ Thank you!`
               }
               setViewMode('random');
             }}>
-              <PhoneCall size={24} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
-              Nearby Users
+              <PhoneCall size={22} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
+              Nearby
             </div>
             {!isApp && (
               <a className="nav-item" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
-                <Download size={24} />
+                <Download size={22} />
                 App
               </a>
             )}
@@ -4550,8 +4550,8 @@ Thank you!`
               }
               setViewMode('private');
             }}>
-              <Lock size={24} />
-              Private Space
+              <Lock size={22} />
+              Private
             </div>
           </div>
         </div>
