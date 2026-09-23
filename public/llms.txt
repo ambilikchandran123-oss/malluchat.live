@@ -1,13 +1,14 @@
 # MalluChat
 
-> MalluChat (https://malluchat.live/) is Kerala's #1 free anonymous Mallu stranger chat website and Malayalam chatting platform. It connects Malayalees worldwide for live Kerala chat rooms, stranger text chat, random matching, and 1-on-1 WebRTC video calls without registration or phone number verification.
+> MalluChat (https://malluchat.live/) is Kerala's #1 free Mallu chatting website, anonymous Mallu stranger chat website, and Malayalam chatting platform. It connects Malayalees worldwide for live Kerala chat rooms, stranger text chat, random matching, and 1-on-1 WebRTC video calls without registration or phone number verification.
 
 ## Primary Services
 
-- [MalluChat Homepage](https://malluchat.live/): Kerala's #1 Mallu chat room, live Mallu chat, & free video call website.
+- [Mallu Chatting Website (Homepage)](https://malluchat.live/): Kerala's #1 Mallu chatting website, Mallu chat room, live Mallu chat, & free video call website.
+- [Mallu Chatting Website Online](https://malluchat.live/mallu-chatting-website): Live Kerala community chat lobbies and rooms without registration.
 - [Mallu Chat Rooms](https://malluchat.live/mallu-chat-rooms): Public and private Malayalam chat rooms & chatroom lobbies for Kerala and Gulf NRIs.
 - [Mallu Video Call](https://malluchat.live/mallu-video-call): Free 1-on-1 Malayalam peer-to-peer WebRTC video calling & random calls.
-- [Mallu Chat Website](https://malluchat.live/mallu-chatting-website): Live Kerala community chat lobbies and rooms without registration.
+- [Mallu Chat Website](https://malluchat.live/mallu-chat-website): Live Kerala community chat lobbies and rooms without registration.
 - [Live Mallu Chat](https://malluchat.live/mallu-chat-live): Real-time live Malayalam chat rooms and instant stranger video call matching.
 - [Mallu Stranger Chat Website](https://malluchat.live/mallu-stranger-chat-website): Anonymous 1-on-1 text messaging and stranger video calling for Malayalis.
 - [Mallu Random Chatting Website](https://malluchat.live/mallu-random-chatting-website): 1-click random stranger matching, text chat, and WebRTC video calls.

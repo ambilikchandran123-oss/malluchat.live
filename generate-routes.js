@@ -56,15 +56,15 @@ const routeMetadata = {
     intro: 'Experience fast, anonymous <strong>Mallu random chat</strong> on MalluChat.live. Meet random Kerala boys and girls online for fun conversations and HD video calls.'
   },
   'mallu-chatting-website': {
-    title: 'Mallu Chat Website - #1 Mallu Chatting Website & Kerala Live Chat | MalluChat',
-    description: 'Looking for the top Mallu chat website? MalluChat is Kerala\'s #1 Malayalam chatting website for anonymous live rooms, Mallu video calls, and stranger chat.',
-    h1: 'Mallu Chat Website - #1 Mallu Chatting Website',
-    intro: 'Looking for the best <strong>Mallu chat website</strong> or <strong>Mallu chatting website</strong>? MalluChat is Kerala&apos;s favorite online chat platform for live Kerala group lobbies, anonymous stranger chat, and WebRTC video calling.'
+    title: 'Mallu Chatting Website - #1 Free Malayalam & Mallu Chat Rooms Online | MalluChat',
+    description: 'Looking for the best Mallu chatting website? MalluChat.live is Kerala\'s #1 Malayalam chatting website for anonymous live rooms, Mallu video calls, and stranger chat with zero registration.',
+    h1: 'Mallu Chatting Website - #1 Free Malayalam Online Chat Rooms',
+    intro: 'Welcome to Kerala&apos;s #1 <strong>Mallu chatting website</strong> (<a href="https://malluchat.live/">MalluChat.live</a>). Whether you are searching for a <strong>Mallu chatting website</strong>, <strong>Mallu chating website</strong>, or <strong>Malayalam chatting website</strong>, MalluChat connects thousands of Malayalees worldwide for instant anonymous text chat, group rooms, and encrypted WebRTC video calls with zero registration.'
   },
   'mallu-chat-website': {
-    title: 'Mallu Chat Website - #1 Mallu Chatting Website & Kerala Live Chat | MalluChat',
-    description: 'Looking for the top Mallu chat website? MalluChat is Kerala\'s #1 Malayalam chatting website for anonymous live rooms, Mallu video calls, and stranger chat.',
-    h1: 'Mallu Chat Website - #1 Mallu Chatting Website',
+    title: 'Mallu Chat Website - Live Malayalam Community Chat & Video Call | MalluChat',
+    description: 'Top Mallu chat website for instant live Malayalam chat, Kerala stranger messaging, and 1-on-1 WebRTC video calls with zero signup.',
+    h1: 'Mallu Chat Website - Live Malayalam Community Chat',
     intro: 'Welcome to the #1 <strong>Mallu Chat Website</strong> online! Connect with Malayalees across Kerala and the GCC for free live chat, voice notes, and 1-on-1 video calls.'
   },
   'malayalam-chatting-website': {
