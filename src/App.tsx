@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -413,6 +413,7 @@ export default function App() {
   const [redeemTokenInput, setRedeemTokenInput] = useState<string>('');
   const [redeemError, setRedeemError] = useState<string>('');
   const [showMailHelper, setShowMailHelper] = useState<boolean>(false);
+  const [showPaymentHelp, setShowPaymentHelp] = useState<boolean>(false);
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
   const ringingTimeoutRef = useRef<any>(null);
   ringingTimeoutRef.current = ringingTimeout;
@@ -3076,9 +3077,27 @@ Thank you!`
                           : 'Your payment verification has been submitted. If your transaction shows successful in your bank/UPI app, it will activate automatically.'}
                       </span>
                       {!isVerifyingPayment && (
-                        <span style={{ fontSize: '0.78rem', color: '#fca5a5', marginTop: '2px' }}>
-                          Facing a delay or error? Use the <strong>Manual Verification</strong> section below to email your screenshot to <strong>teamtwingle@gmail.com</strong> for your unique token.
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#fca5a5' }}>
+                            Facing a delay or error?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowPaymentHelp(true)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.2)',
+                              border: '1px solid rgba(239, 68, 68, 0.4)',
+                              color: '#fee2e2',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Open Help
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -3086,8 +3105,22 @@ Thank you!`
               </div>
             )}
 
-            {/* Payment Error / Manual Verification & Customer Care Section */}
-            <div className="payment-support-card">
+            {/* Small Help Button to toggle Manual Verification, Email & Token details */}
+            <div style={{ marginTop: '14px', marginBottom: showPaymentHelp ? '10px' : '4px', display: 'flex', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowPaymentHelp(!showPaymentHelp)}
+                className={`payment-help-toggle-btn ${showPaymentHelp ? 'active' : ''}`}
+              >
+                <HelpCircle size={14} />
+                <span>{showPaymentHelp ? 'Hide Payment Help' : 'Help / Payment Issues?'}</span>
+                <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>{showPaymentHelp ? '▲' : '▼'}</span>
+              </button>
+            </div>
+
+            {/* Collapsible Payment Error / Manual Verification & Customer Care Section */}
+            {showPaymentHelp && (
+              <div className="payment-support-card">
               <div className="payment-support-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Headphones size={20} color="var(--primary)" />
@@ -3214,6 +3247,7 @@ Thank you!`
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}

@@ -2274,6 +2274,35 @@ body {
   75% { transform: translateX(4px); }
 }
 
+/* Small Payment Help Toggle Button */
+.payment-help-toggle-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.payment-help-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--primary);
+  border-color: rgba(74, 222, 128, 0.35);
+  transform: translateY(-1px);
+}
+
+.payment-help-toggle-btn.active {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--primary);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+
 /* Payment Support & Manual Verification Card */
 .payment-support-card {
   margin-top: 1.5rem;
