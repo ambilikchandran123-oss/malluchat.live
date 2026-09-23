@@ -1701,19 +1701,19 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  padding: calc(16px + env(safe-area-inset-top)) 10px calc(24px + env(safe-area-inset-bottom));
+  padding: calc(16px + env(safe-area-inset-top)) 12px calc(20px + env(safe-area-inset-bottom));
   box-sizing: border-box;
   animation: fadeIn 0.25s ease-out;
 }
 
 .paywall-card {
-  max-width: 420px !important;
+  max-width: 380px !important;
   width: 100%;
-  margin: auto 0;
+  margin: auto !important;
   border-radius: 24px;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98));
+  background: linear-gradient(180deg, rgba(22, 33, 50, 0.97), rgba(13, 20, 32, 0.99));
   border: 1px solid rgba(251, 191, 36, 0.2);
-  padding: 1.8rem 1.4rem;
+  padding: 1.5rem 1.3rem;
   box-sizing: border-box;
   text-align: center;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(251, 191, 36, 0.08);
@@ -1723,29 +1723,29 @@ body {
 }
 
 .paywall-crown {
-  width: 70px;
-  height: 70px;
+  width: 52px;
+  height: 52px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
   color: black;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 1.5rem auto;
-  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
+  margin: 0 auto 0.75rem auto;
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
 }
 
 .paywall-card h3 {
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   color: var(--text-main);
 }
 
 .paywall-card p {
   color: var(--text-muted);
-  font-size: 0.9rem;
-  margin-bottom: 1.5rem;
+  font-size: 0.84rem;
+  margin-bottom: 0.95rem;
 }
 
 .paywall-badge-title {
@@ -1926,8 +1926,8 @@ body {
 .plans-grid {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin: 1.5rem 0 1.25rem 0;
+  gap: 10px;
+  margin: 0.9rem 0 0.8rem 0;
   width: 100%;
 }
 
@@ -1935,16 +1935,16 @@ body {
   .plans-grid {
     display: flex;
     flex-direction: column;
-    gap: 13px;
-    margin: 1.2rem 0 1rem 0;
+    gap: 9px;
+    margin: 0.75rem 0 0.65rem 0;
   }
 }
 
 .plan-card {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 18px;
-  padding: 1.15rem 1rem;
+  border-radius: 15px;
+  padding: 0.75rem 0.85rem;
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
@@ -3094,7 +3094,7 @@ body {
 
   /* Paywall & Payment Modal on Smartphones */
   .paywall-overlay {
-    padding: calc(10px + env(safe-area-inset-top)) 8px calc(24px + env(safe-area-inset-bottom)) !important;
+    padding: calc(10px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom)) !important;
     align-items: center !important;
     justify-content: flex-start !important;
     overflow-y: auto !important;
@@ -3103,53 +3103,54 @@ body {
   }
 
   .paywall-card {
-    padding: 1.6rem 1.3rem !important;
-    border-radius: 24px !important;
+    padding: 1.15rem 1.05rem !important;
+    border-radius: 22px !important;
     max-height: none !important;
     overflow: visible !important;
-    max-width: min(390px, calc(100vw - 28px)) !important;
+    max-width: min(350px, calc(100vw - 24px)) !important;
     width: 100% !important;
-    margin: 0 auto !important;
+    margin: auto !important; /* Perfect vertical & horizontal centering */
   }
 
   .paywall-crown {
-    width: 58px !important;
-    height: 58px !important;
-    margin: 0 auto 0.9rem auto !important;
+    width: 44px !important;
+    height: 44px !important;
+    margin: 0 auto 0.5rem auto !important;
     background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35) !important;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3) !important;
   }
 
   .paywall-crown svg {
-    width: 30px !important;
-    height: 30px !important;
+    width: 22px !important;
+    height: 22px !important;
   }
 
   .paywall-card h3 {
-    font-size: 1.35rem !important;
+    font-size: 1.18rem !important;
     font-weight: 700 !important;
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.2rem !important;
     color: var(--text-main) !important;
   }
 
   .paywall-card p {
-    font-size: 0.84rem !important;
-    margin-bottom: 0.95rem !important;
+    font-size: 0.78rem !important;
+    margin-bottom: 0.65rem !important;
+    line-height: 1.35 !important;
     color: var(--text-muted) !important;
   }
 
   .plans-grid {
     display: flex !important;
     flex-direction: column !important;
-    gap: 13px !important;
-    margin: 1.1rem 0 0.9rem 0 !important;
+    gap: 9px !important;
+    margin: 0.65rem 0 0.55rem 0 !important;
     width: 100% !important;
   }
 
   .plan-card {
-    padding: 1.05rem 0.9rem !important;
+    padding: 0.65rem 0.8rem !important;
     min-height: auto !important;
-    border-radius: 16px !important;
+    border-radius: 14px !important;
     width: 100% !important;
     box-sizing: border-box !important;
     display: flex !important;
@@ -3159,33 +3160,33 @@ body {
   }
 
   .plan-card-duration {
-    font-size: 0.82rem !important;
+    font-size: 0.74rem !important;
     color: var(--text-muted) !important;
-    margin-bottom: 2px !important;
+    margin-bottom: 1px !important;
     font-weight: 500 !important;
   }
 
   .plan-card-price {
-    font-size: 1.6rem !important;
+    font-size: 1.38rem !important;
     font-weight: 800 !important;
     color: var(--text-main) !important;
-    margin-bottom: 2px !important;
+    margin-bottom: 1px !important;
   }
 
   .plan-card-label {
-    font-size: 0.7rem !important;
+    font-size: 0.62rem !important;
     color: var(--text-muted) !important;
     text-transform: uppercase !important;
-    letter-spacing: 0.6px !important;
+    letter-spacing: 0.5px !important;
     font-weight: 600 !important;
   }
 
   .card-badge {
-    font-size: 0.62rem !important;
+    font-size: 0.55rem !important;
     font-weight: 800 !important;
-    padding: 2px 10px !important;
-    top: -9px !important;
-    border-radius: 20px !important;
+    padding: 2px 8px !important;
+    top: -8px !important;
+    border-radius: 14px !important;
   }
 
   .payment-details-panel {
