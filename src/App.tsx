@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, Mail, Headphones, KeyRound, ShieldAlert, HelpCircle, CheckCircle2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -400,7 +400,11 @@ export default function App() {
   const [, setLocationSource] = useState<'GPS' | 'Network' | 'Default'>('Default');
   const [activeCallingUser, setActiveCallingUser] = useState<any | null>(null);
   const [showPaywall, setShowPaywall] = useState<boolean>(false);
-  const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>({
+    amount: 100,
+    duration: '1 Month',
+    label: 'Monthly Pack'
+  });
   const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
   const [screenshotFileName, setScreenshotFileName] = useState<string>('');
   const [verificationSubmitted, setVerificationSubmitted] = useState<boolean>(false);
@@ -408,10 +412,11 @@ export default function App() {
   const [copiedSupportEmail, setCopiedSupportEmail] = useState<boolean>(false);
   const [targetUpiId, setTargetUpiId] = useState<string>('BHARATPE2J0A0P6U4O28675@unitype');
   const [showPaymentSettings, setShowPaymentSettings] = useState<boolean>(false);
-  const [showQrCode, setShowQrCode] = useState<boolean>(false);
+  const [showQrCode, setShowQrCode] = useState<boolean>(true);
   const [currentTxnId, setCurrentTxnId] = useState<string>('');
   const [redeemTokenInput, setRedeemTokenInput] = useState<string>('');
   const [redeemError, setRedeemError] = useState<string>('');
+  const [tokenSubmittedMsg, setTokenSubmittedMsg] = useState<string>('');
   const [showMailHelper, setShowMailHelper] = useState<boolean>(false);
   const [showPaymentHelp, setShowPaymentHelp] = useState<boolean>(false);
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
@@ -1497,37 +1502,16 @@ export default function App() {
     setVerificationSubmitted(true);
     setIsVerifyingPayment(true);
 
-    // Simulate transaction validation
     setTimeout(() => {
       setIsVerifyingPayment(false);
-      setIsPremium(true);
-      localStorage.setItem('malluchat_premium', 'true');
-      setShowPaywall(false);
 
-      // Clean up dial / call triggers
+      // Clean up dial / call triggers and stop ringing
       if (ringingTimeout) clearTimeout(ringingTimeout);
       setRingingTimeout(null);
       ringtone.stop();
 
-      alert("🎉 Premium access unlocked successfully! Enjoy unlimited random calls & gender filters.");
-
-      if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
-        // Automatically start the call!
-        setInCall(true);
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          .then((stream) => {
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream;
-            }
-            peerEngine.localStream = stream;
-          })
-          .catch((err) => {
-            console.warn("Camera permission declined", err);
-          });
-      } else {
-        setActiveCallingUser(null);
-      }
-    }, 2500);
+      alert("Payment details submitted successfully! Your payment is under review. Please wait up to 24 hours for manual verification before calling access is unlocked.");
+    }, 1800);
   };
 
   const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
@@ -1597,32 +1581,21 @@ Thank you!`
     }
 
     setRedeemError('');
-    setIsPremium(true);
-    localStorage.setItem('malluchat_premium', 'true');
-    localStorage.setItem('malluchat_active_token', token);
-    setShowPaywall(false);
 
-    if (ringingTimeout) clearTimeout(ringingTimeout);
-    setRingingTimeout(null);
-    ringtone.stop();
-
-    alert(`🎉 Unique Token "${token}" successfully verified! Free calling tokens & VIP access are now activated.`);
-
-    if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
-      setInCall(true);
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then((stream) => {
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-          }
-          peerEngine.localStream = stream;
-        })
-        .catch((err) => {
-          console.warn("Camera permission declined", err);
-        });
-    } else {
-      setActiveCallingUser(null);
+    // Optional admin bypass token for owner testing
+    if (token.toUpperCase() === 'TWINGLEVIP' || token.toUpperCase() === 'ADMIN2026') {
+      setIsPremium(true);
+      localStorage.setItem('malluchat_premium', 'true');
+      setShowPaywall(false);
+      alert('🎉 VIP Master Token verified! Calling access unlocked.');
+      return;
     }
+
+    localStorage.setItem('malluchat_submitted_token', token);
+    setRedeemTokenInput('');
+    setTokenSubmittedMsg(`Token "${token}" submitted successfully! Please wait up to 24 hours for verification and activation by our team.`);
+
+    alert(`Unique Token "${token}" submitted successfully! Please wait up to 24 hours for verification and activation.`);
   };
 
   const handleSelectPlan = (plan: { amount: number; duration: string; label: string }) => {
@@ -1642,6 +1615,13 @@ Thank you!`
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
+
+  useEffect(() => {
+    if (showPaywall && !currentTxnId) {
+      const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
+      setCurrentTxnId(newTxnId);
+    }
+  }, [showPaywall, currentTxnId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2850,6 +2830,34 @@ Thank you!`
                 : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
 
+            {/* How to Make Payment - Clear Step-by-Step Instructions */}
+            <div className="payment-instructions-card">
+              <div className="payment-instructions-header">
+                <CheckCircle2 size={18} color="var(--primary)" />
+                <span>How to Make Payment &amp; Unlock Calling</span>
+              </div>
+              <div className="payment-instructions-steps">
+                <div className="instruction-step">
+                  <div className="instruction-step-num">1</div>
+                  <div className="instruction-step-body">
+                    <strong>Choose a Plan:</strong> Select 1 Day Pass (₹60), Monthly (₹100), or VIP Gold (₹150) below.
+                  </div>
+                </div>
+                <div className="instruction-step">
+                  <div className="instruction-step-num">2</div>
+                  <div className="instruction-step-body">
+                    <strong>Scan QR or Pay UPI:</strong> Pay the exact amount using Google Pay, PhonePe, Paytm, or BHIM to UPI ID: <code>{targetUpiId}</code>.
+                  </div>
+                </div>
+                <div className="instruction-step">
+                  <div className="instruction-step-num">3</div>
+                  <div className="instruction-step-body">
+                    <strong>Upload Screenshot:</strong> Upload your transaction screenshot below and submit for manual verification within 24 hours.
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Plans Selection Grid */}
             <div className="plans-grid">
               {[
@@ -2928,8 +2936,8 @@ Thank you!`
 
             {selectedPlan && (
               <div className="payment-details-panel">
-                <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
-                  Step 1: Scan the QR Code to Pay
+                <div style={{ fontSize: '0.92rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
+                  Step 2: Scan QR Code or Pay via UPI
                 </div>
                 <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
                   ⚠️ Pay exactly ₹{selectedPlan.amount} (Transaction will show ₹{selectedPlan.amount})
@@ -3014,7 +3022,10 @@ Thank you!`
 
             {selectedPlan && (
               <div className="verification-section">
-                <h4>Upload Payment Screenshot</h4>
+                <h4>Step 3: Upload Payment Screenshot</h4>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', marginTop: '-4px' }}>
+                  Upload your transaction confirmation screenshot showing the UPI Reference / UTR number for manual verification.
+                </p>
                 {!paymentScreenshot ? (
                   <label className="upload-zone">
                     <input
@@ -3237,12 +3248,27 @@ Thank you!`
                     className="redeem-btn"
                     onClick={handleApplyRedeemToken}
                   >
-                    Activate
+                    Submit Token
                   </button>
                 </div>
                 {redeemError && (
                   <div style={{ color: '#f87171', fontSize: '0.72rem', marginTop: '4px', textAlign: 'left' }}>
                     {redeemError}
+                  </div>
+                )}
+                {tokenSubmittedMsg && (
+                  <div style={{
+                    color: '#fbbf24',
+                    background: 'rgba(251, 191, 36, 0.1)',
+                    border: '1px solid rgba(251, 191, 36, 0.25)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    fontSize: '0.78rem',
+                    marginTop: '8px',
+                    textAlign: 'left',
+                    lineHeight: 1.45
+                  }}>
+                    ⏳ <strong>Verification in progress:</strong> {tokenSubmittedMsg}
                   </div>
                 )}
               </div>
