@@ -2790,37 +2790,10 @@ export default function App() {
             {selectedPlan && (
               <div className="payment-details-panel">
                 <div style={{ fontSize: '0.94rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
-                  Scan QR Code or Pay via UPI
+                  Scan QR Code to Pay
                 </div>
                 <div style={{ fontSize: '0.82rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
                   ⚠️ Pay exactly ₹{selectedPlan.amount} ({selectedPlan.duration} - {selectedPlan.label})
-                </div>
-
-                {/* Direct Pay via UPI App button for smartphones */}
-                <div style={{ marginBottom: '14px', width: '100%' }}>
-                  <a
-                    href={`upi://pay?pa=${encodeURIComponent(targetUpiId)}&pn=MalluChat&mc=5734&tr=${currentTxnId}&am=${selectedPlan.amount}&cu=INR&tn=MalluChat%20Plan%20${encodeURIComponent(selectedPlan.label)}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      background: 'linear-gradient(135deg, #10b981, #059669)',
-                      color: '#ffffff',
-                      textDecoration: 'none',
-                      fontWeight: 700,
-                      fontSize: '0.94rem',
-                      padding: '11px 16px',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)',
-                      transition: 'transform 0.15s ease'
-                    }}
-                  >
-                    <span>⚡ Pay ₹{selectedPlan.amount} via UPI App</span>
-                  </a>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '5px', textAlign: 'center' }}>
-                    Opens Google Pay, PhonePe, Paytm, or BHIM directly
-                  </div>
                 </div>
 
                 {/* Collapsible QR Code Section */}
