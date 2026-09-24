@@ -383,7 +383,21 @@ export const formatRequestTime = (timestamp: number) => {
 
 export default function App() {
   const [viewMode, setViewMode] = useState<'private' | 'public' | 'random'>('public');
-  const [username, setUsername] = useState<string>('');
+  const [username, setUsername] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('malluchat_username') || '';
+    }
+    return '';
+  });
+  const [userAge, setUserAge] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('malluchat_age') || '';
+    }
+    return '';
+  });
+  const [loginName, setLoginName] = useState<string>('');
+  const [loginAge, setLoginAge] = useState<string>('');
+  const [loginError, setLoginError] = useState<string>('');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Premium paywall states
@@ -504,6 +518,8 @@ export default function App() {
   viewModeRef.current = viewMode;
   const usernameRef = useRef(username);
   usernameRef.current = username;
+  const userAgeRef = useRef(userAge);
+  userAgeRef.current = userAge;
   const myIdRef = useRef(myId);
   myIdRef.current = myId;
   const statusRef = useRef(status);
@@ -1963,9 +1979,22 @@ export default function App() {
       setUnreadCount(0);
       setShowScrollBottomBtn(false);
     }
-    const targetRef = viewMode === 'public' ? publicMessagesEndRef : messagesEndRef;
-    targetRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = chatContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    } else {
+      const targetRef = viewMode === 'public' ? publicMessagesEndRef : messagesEndRef;
+      targetRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
+
+  useEffect(() => {
+    if (showLoginModal) {
+      setLoginName(username || '');
+      setLoginAge(userAge || '');
+      setLoginError('');
+    }
+  }, [showLoginModal, username, userAge]);
 
   const handleChatScroll = () => {
     const container = chatContainerRef.current;
@@ -2443,11 +2472,6 @@ export default function App() {
     setReplyingTo(null);
     sendPrivateMessage({ id: uuidv4(), type: 'typing_stop' });
     sentSound.play().catch(() => { });
-
-    // Dismiss virtual keyboard on smartphones
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
     scrollToBottom(true);
   };
 
@@ -2460,6 +2484,7 @@ export default function App() {
       id: uuidv4(),
       senderId: myId || myIdRef.current || peerEngine.id || (typeof window !== 'undefined' ? localStorage.getItem('malluchat_stable_peer_id') : '') || '',
       senderName: username,
+      senderAge: userAge,
       type: 'text',
       text: publicInput,
       timestamp: Date.now(),
@@ -2479,11 +2504,6 @@ export default function App() {
 
     setPublicInput('');
     setReplyingTo(null);
-
-    // Dismiss virtual keyboard on smartphones
-    if (document.activeElement instanceof HTMLElement) {
-      document.activeElement.blur();
-    }
     scrollToBottom(true);
   };
 
@@ -2502,11 +2522,12 @@ export default function App() {
       timestamp: Date.now(),
       status: 'sent',
       replyToId: replyingTo?.id,
-      replyText: replyingTo?.text || "GIF"
+      replyText: replyingTo?.text || "GIF",
+      senderAge: userAge
     };
 
     if (viewMode === 'public') {
-      const publicMsg = { ...msg, senderId: myId, senderName: username };
+      const publicMsg = { ...msg, senderId: myId, senderName: username, senderAge: userAge };
       setPublicMessages(prev => {
         const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
@@ -2520,7 +2541,7 @@ export default function App() {
     } else {
       sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username, senderAge: userAge }];
         const peerId = activePrivatePeerIdRef.current;
         if (peerId) {
           localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
@@ -2551,11 +2572,12 @@ export default function App() {
       timestamp: Date.now(),
       status: 'sent',
       replyToId: replyingTo?.id,
-      replyText: replyingTo?.text || "Photo"
+      replyText: replyingTo?.text || "Photo",
+      senderAge: userAge
     };
 
     if (viewMode === 'public') {
-      const publicMsg = { ...msg, senderId: myId, senderName: username };
+      const publicMsg = { ...msg, senderId: myId, senderName: username, senderAge: userAge };
       setPublicMessages(prev => {
         const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
@@ -2569,7 +2591,7 @@ export default function App() {
     } else {
       sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username, senderAge: userAge }];
         const peerId = activePrivatePeerIdRef.current;
         if (peerId) {
           localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
@@ -3115,28 +3137,126 @@ export default function App() {
               <button
                 className="icon-btn"
                 style={{ position: 'absolute', top: '15px', right: '15px' }}
-                onClick={() => setShowLoginModal(false)}
+                onClick={() => {
+                  setShowLoginModal(false);
+                  setLoginError('');
+                }}
               >
                 <X size={20} />
               </button>
-              <h2 style={{ marginBottom: '1rem' }}>Join the Chat</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>Choose a display name to start chatting anonymously.</p>
-              <input
-                className="input-field"
-                placeholder="Enter display name..."
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                maxLength={20}
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && username.trim()) setShowLoginModal(false);
-                }}
-              />
+              <h2 style={{ marginBottom: '0.4rem' }}>Join the Chat</h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.2rem', fontSize: '0.88rem' }}>Enter your name and age to chat anonymously.</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', textAlign: 'left' }}>
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Display Name</label>
+                  <input
+                    className="input-field"
+                    placeholder="Enter your name (e.g. Rahul)..."
+                    value={loginName}
+                    onChange={e => {
+                      setLoginName(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    maxLength={20}
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const trimmedName = loginName.trim();
+                        const trimmedAge = loginAge.trim();
+                        const parsedAge = parseInt(trimmedAge, 10);
+                        if (!trimmedName || trimmedName.length < 2) {
+                          setLoginError('Please enter a display name (at least 2 letters)');
+                          return;
+                        }
+                        if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
+                          setLoginError('Please enter a valid age (18 or older)');
+                          return;
+                        }
+                        setUsername(trimmedName);
+                        setUserAge(trimmedAge);
+                        try {
+                          localStorage.setItem('malluchat_username', trimmedName);
+                          localStorage.setItem('malluchat_age', trimmedAge);
+                        } catch (_) {}
+                        setShowLoginModal(false);
+                        setLoginError('');
+                      }
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Age</label>
+                  <input
+                    className="input-field"
+                    type="number"
+                    min={18}
+                    max={99}
+                    placeholder="Enter your age (e.g. 23)..."
+                    value={loginAge}
+                    onChange={e => {
+                      setLoginAge(e.target.value);
+                      if (loginError) setLoginError('');
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        const trimmedName = loginName.trim();
+                        const trimmedAge = loginAge.trim();
+                        const parsedAge = parseInt(trimmedAge, 10);
+                        if (!trimmedName || trimmedName.length < 2) {
+                          setLoginError('Please enter a display name (at least 2 letters)');
+                          return;
+                        }
+                        if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
+                          setLoginError('Please enter a valid age (18 or older)');
+                          return;
+                        }
+                        setUsername(trimmedName);
+                        setUserAge(trimmedAge);
+                        try {
+                          localStorage.setItem('malluchat_username', trimmedName);
+                          localStorage.setItem('malluchat_age', trimmedAge);
+                        } catch (_) {}
+                        setShowLoginModal(false);
+                        setLoginError('');
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              {loginError && (
+                <div style={{ color: 'var(--danger)', fontSize: '0.8rem', marginTop: '0.6rem', textAlign: 'left' }}>
+                  {loginError}
+                </div>
+              )}
+
               <button
                 className="btn btn-primary"
-                style={{ marginTop: '1rem' }}
-                disabled={!username.trim()}
-                onClick={() => setShowLoginModal(false)}
+                style={{ marginTop: '1.2rem', width: '100%' }}
+                disabled={!loginName.trim() || !loginAge.trim()}
+                onClick={() => {
+                  const trimmedName = loginName.trim();
+                  const trimmedAge = loginAge.trim();
+                  const parsedAge = parseInt(trimmedAge, 10);
+                  if (!trimmedName || trimmedName.length < 2) {
+                    setLoginError('Please enter a display name (at least 2 letters)');
+                    return;
+                  }
+                  if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
+                    setLoginError('Please enter a valid age (18 or older)');
+                    return;
+                  }
+                  setUsername(trimmedName);
+                  setUserAge(trimmedAge);
+                  try {
+                    localStorage.setItem('malluchat_username', trimmedName);
+                    localStorage.setItem('malluchat_age', trimmedAge);
+                  } catch (_) {}
+                  setShowLoginModal(false);
+                  setLoginError('');
+                }}
               >
                 Start Chatting
               </button>
@@ -3810,6 +3930,60 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {viewMode !== 'private' && (
+                username ? (
+                  <button
+                    onClick={() => {
+                      setLoginName(username);
+                      setLoginAge(userAge);
+                      setLoginError('');
+                      setShowLoginModal(true);
+                    }}
+                    title="Tap to change profile"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid var(--panel-border)',
+                      borderRadius: '20px',
+                      padding: '4px 10px',
+                      color: 'var(--text-main)',
+                      fontSize: '0.78rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--primary)' }}></span>
+                    <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{username}</span>
+                    {userAge ? <span style={{ opacity: 0.65, fontSize: '0.72rem' }}>({userAge})</span> : null}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setLoginName('');
+                      setLoginAge('');
+                      setLoginError('');
+                      setShowLoginModal(true);
+                    }}
+                    title="Join with Name & Age"
+                    style={{
+                      background: 'rgba(74, 222, 128, 0.15)',
+                      border: '1px solid var(--primary)',
+                      borderRadius: '20px',
+                      padding: '4px 10px',
+                      color: 'var(--primary)',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>Join Chat</span>
+                  </button>
+                )
+              )}
+              {viewMode !== 'private' && (
                 <button
                   className={`requests-header-btn ${incomingRequests.length > 0 ? 'has-requests' : ''}`}
                   onClick={() => setShowRequestsModal(true)}
@@ -4119,6 +4293,11 @@ export default function App() {
                           <span style={{ opacity: 0.6 }}> • </span>
                           <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--username-color)' }}>
                             {msg.senderName}
+                            {msg.senderAge && (
+                              <span style={{ opacity: 0.75, fontWeight: 500, fontSize: '0.75rem', marginLeft: '3px' }}>
+                                ({msg.senderAge})
+                              </span>
+                            )}
                           </span>
                           {viewMode === 'public' && <span style={{ fontSize: '0.6rem', marginLeft: '2px', color: 'var(--primary)', fontWeight: 'bold' }}>(Private Chat)</span>}
                         </span>
@@ -4201,11 +4380,13 @@ export default function App() {
                     <input
                       type="text"
                       className="chat-input"
-                      placeholder={viewMode === 'public' ? "Send to public..." : "Type a secure message..."}
+                      placeholder={viewMode === 'public' ? (username ? "Send to public..." : "Tap to join & chat...") : "Type a secure message..."}
                       value={viewMode === 'public' ? publicInput : inputText}
                       onFocus={() => {
                         if (viewMode === 'public' && !username) {
                           setShowLoginModal(true);
+                        } else {
+                          setTimeout(() => scrollToBottom(true), 300);
                         }
                       }}
                       onChange={e => {
