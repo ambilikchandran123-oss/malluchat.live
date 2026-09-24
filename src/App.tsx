@@ -3930,60 +3930,6 @@ export default function App() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {viewMode !== 'private' && (
-                username ? (
-                  <button
-                    onClick={() => {
-                      setLoginName(username);
-                      setLoginAge(userAge);
-                      setLoginError('');
-                      setShowLoginModal(true);
-                    }}
-                    title="Tap to change profile"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.06)',
-                      border: '1px solid var(--panel-border)',
-                      borderRadius: '20px',
-                      padding: '4px 10px',
-                      color: 'var(--text-main)',
-                      fontSize: '0.78rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--primary)' }}></span>
-                    <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{username}</span>
-                    {userAge ? <span style={{ opacity: 0.65, fontSize: '0.72rem' }}>({userAge})</span> : null}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setLoginName('');
-                      setLoginAge('');
-                      setLoginError('');
-                      setShowLoginModal(true);
-                    }}
-                    title="Join with Name & Age"
-                    style={{
-                      background: 'rgba(74, 222, 128, 0.15)',
-                      border: '1px solid var(--primary)',
-                      borderRadius: '20px',
-                      padding: '4px 10px',
-                      color: 'var(--primary)',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span>Join Chat</span>
-                  </button>
-                )
-              )}
-              {viewMode !== 'private' && (
                 <button
                   className={`requests-header-btn ${incomingRequests.length > 0 ? 'has-requests' : ''}`}
                   onClick={() => setShowRequestsModal(true)}
@@ -4293,11 +4239,6 @@ export default function App() {
                           <span style={{ opacity: 0.6 }}> • </span>
                           <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--username-color)' }}>
                             {msg.senderName}
-                            {msg.senderAge && (
-                              <span style={{ opacity: 0.75, fontWeight: 500, fontSize: '0.75rem', marginLeft: '3px' }}>
-                                ({msg.senderAge})
-                              </span>
-                            )}
                           </span>
                           {viewMode === 'public' && <span style={{ fontSize: '0.6rem', marginLeft: '2px', color: 'var(--primary)', fontWeight: 'bold' }}>(Private Chat)</span>}
                         </span>
