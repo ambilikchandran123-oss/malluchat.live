@@ -389,14 +389,8 @@ export default function App() {
     }
     return '';
   });
-  const [userAge, setUserAge] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('malluchat_age') || '';
-    }
-    return '';
-  });
+
   const [loginName, setLoginName] = useState<string>('');
-  const [loginAge, setLoginAge] = useState<string>('');
   const [loginError, setLoginError] = useState<string>('');
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -518,8 +512,7 @@ export default function App() {
   viewModeRef.current = viewMode;
   const usernameRef = useRef(username);
   usernameRef.current = username;
-  const userAgeRef = useRef(userAge);
-  userAgeRef.current = userAge;
+
   const myIdRef = useRef(myId);
   myIdRef.current = myId;
   const statusRef = useRef(status);
@@ -1991,10 +1984,9 @@ export default function App() {
   useEffect(() => {
     if (showLoginModal) {
       setLoginName(username || '');
-      setLoginAge(userAge || '');
       setLoginError('');
     }
-  }, [showLoginModal, username, userAge]);
+  }, [showLoginModal, username]);
 
   const handleChatScroll = () => {
     const container = chatContainerRef.current;
@@ -2484,7 +2476,6 @@ export default function App() {
       id: uuidv4(),
       senderId: myId || myIdRef.current || peerEngine.id || (typeof window !== 'undefined' ? localStorage.getItem('malluchat_stable_peer_id') : '') || '',
       senderName: username,
-      senderAge: userAge,
       type: 'text',
       text: publicInput,
       timestamp: Date.now(),
@@ -2522,12 +2513,11 @@ export default function App() {
       timestamp: Date.now(),
       status: 'sent',
       replyToId: replyingTo?.id,
-      replyText: replyingTo?.text || "GIF",
-      senderAge: userAge
+      replyText: replyingTo?.text || "GIF"
     };
 
     if (viewMode === 'public') {
-      const publicMsg = { ...msg, senderId: myId, senderName: username, senderAge: userAge };
+      const publicMsg = { ...msg, senderId: myId, senderName: username };
       setPublicMessages(prev => {
         const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
@@ -2541,7 +2531,7 @@ export default function App() {
     } else {
       sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, { ...msg, senderId: myId, senderName: username, senderAge: userAge }];
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
         const peerId = activePrivatePeerIdRef.current;
         if (peerId) {
           localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
@@ -2572,12 +2562,11 @@ export default function App() {
       timestamp: Date.now(),
       status: 'sent',
       replyToId: replyingTo?.id,
-      replyText: replyingTo?.text || "Photo",
-      senderAge: userAge
+      replyText: replyingTo?.text || "Photo"
     };
 
     if (viewMode === 'public') {
-      const publicMsg = { ...msg, senderId: myId, senderName: username, senderAge: userAge };
+      const publicMsg = { ...msg, senderId: myId, senderName: username };
       setPublicMessages(prev => {
         const updated = [...prev, publicMsg];
         localStorage.setItem('malluchat_public_messages', JSON.stringify(updated));
@@ -2591,7 +2580,7 @@ export default function App() {
     } else {
       sendPrivateMessage(msg);
       setMessages(prev => {
-        const updated = [...prev, { ...msg, senderId: myId, senderName: username, senderAge: userAge }];
+        const updated = [...prev, { ...msg, senderId: myId, senderName: username }];
         const peerId = activePrivatePeerIdRef.current;
         if (peerId) {
           localStorage.setItem(`malluchat_private_messages_${peerId}`, JSON.stringify(updated));
@@ -3145,7 +3134,7 @@ export default function App() {
                 <X size={20} />
               </button>
               <h2 style={{ marginBottom: '0.4rem' }}>Join the Chat</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '1.2rem', fontSize: '0.88rem' }}>Enter your name and age to chat anonymously.</p>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '1.2rem', fontSize: '0.88rem' }}>Choose a display name to start chatting anonymously.</p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', textAlign: 'left' }}>
                 <div>
@@ -3163,60 +3152,13 @@ export default function App() {
                     onKeyDown={e => {
                       if (e.key === 'Enter') {
                         const trimmedName = loginName.trim();
-                        const trimmedAge = loginAge.trim();
-                        const parsedAge = parseInt(trimmedAge, 10);
                         if (!trimmedName || trimmedName.length < 2) {
                           setLoginError('Please enter a display name (at least 2 letters)');
                           return;
                         }
-                        if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
-                          setLoginError('Please enter a valid age (18 or older)');
-                          return;
-                        }
                         setUsername(trimmedName);
-                        setUserAge(trimmedAge);
                         try {
                           localStorage.setItem('malluchat_username', trimmedName);
-                          localStorage.setItem('malluchat_age', trimmedAge);
-                        } catch (_) {}
-                        setShowLoginModal(false);
-                        setLoginError('');
-                      }
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '4px', display: 'block' }}>Age</label>
-                  <input
-                    className="input-field"
-                    type="number"
-                    min={18}
-                    max={99}
-                    placeholder="Enter your age (e.g. 23)..."
-                    value={loginAge}
-                    onChange={e => {
-                      setLoginAge(e.target.value);
-                      if (loginError) setLoginError('');
-                    }}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        const trimmedName = loginName.trim();
-                        const trimmedAge = loginAge.trim();
-                        const parsedAge = parseInt(trimmedAge, 10);
-                        if (!trimmedName || trimmedName.length < 2) {
-                          setLoginError('Please enter a display name (at least 2 letters)');
-                          return;
-                        }
-                        if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
-                          setLoginError('Please enter a valid age (18 or older)');
-                          return;
-                        }
-                        setUsername(trimmedName);
-                        setUserAge(trimmedAge);
-                        try {
-                          localStorage.setItem('malluchat_username', trimmedName);
-                          localStorage.setItem('malluchat_age', trimmedAge);
                         } catch (_) {}
                         setShowLoginModal(false);
                         setLoginError('');
@@ -3235,24 +3177,16 @@ export default function App() {
               <button
                 className="btn btn-primary"
                 style={{ marginTop: '1.2rem', width: '100%' }}
-                disabled={!loginName.trim() || !loginAge.trim()}
+                disabled={!loginName.trim()}
                 onClick={() => {
                   const trimmedName = loginName.trim();
-                  const trimmedAge = loginAge.trim();
-                  const parsedAge = parseInt(trimmedAge, 10);
                   if (!trimmedName || trimmedName.length < 2) {
                     setLoginError('Please enter a display name (at least 2 letters)');
                     return;
                   }
-                  if (!trimmedAge || isNaN(parsedAge) || parsedAge < 18 || parsedAge > 99) {
-                    setLoginError('Please enter a valid age (18 or older)');
-                    return;
-                  }
                   setUsername(trimmedName);
-                  setUserAge(trimmedAge);
                   try {
                     localStorage.setItem('malluchat_username', trimmedName);
-                    localStorage.setItem('malluchat_age', trimmedAge);
                   } catch (_) {}
                   setShowLoginModal(false);
                   setLoginError('');
