@@ -2999,8 +2999,8 @@ export default function App() {
               </div>
             )}
 
-            {/* Payment Issues & Customer Support Button */}
-            <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', textAlign: 'center', width: '100%' }}>
+            {/* Payment Issues & Customer Support Button (Subtle melted green glass design) */}
+            <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.06)', textAlign: 'center', width: '100%' }}>
               <a
                 href="/payment-help/"
                 target="_blank"
@@ -3010,27 +3010,33 @@ export default function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '6px',
-                  color: '#fbbf24',
-                  fontSize: '0.82rem',
-                  fontWeight: 600,
+                  color: 'var(--primary, #4ade80)',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
                   textDecoration: 'none',
-                  padding: '9px 16px',
+                  padding: '8px 14px',
                   borderRadius: '10px',
-                  background: 'rgba(251, 191, 36, 0.1)',
-                  border: '1px solid rgba(251, 191, 36, 0.25)',
-                  transition: 'all 0.2s',
+                  background: 'rgba(74, 222, 128, 0.06)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(74, 222, 128, 0.18)',
+                  transition: 'all 0.25s ease',
                   cursor: 'pointer',
                   width: '100%',
                   boxSizing: 'border-box'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(251, 191, 36, 0.2)';
+                  e.currentTarget.style.background = 'rgba(74, 222, 128, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(74, 222, 128, 0.35)';
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(74, 222, 128, 0.15)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(251, 191, 36, 0.1)';
+                  e.currentTarget.style.background = 'rgba(74, 222, 128, 0.06)';
+                  e.currentTarget.style.borderColor = 'rgba(74, 222, 128, 0.18)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <HelpCircle size={15} />
+                <HelpCircle size={14} style={{ opacity: 0.85 }} />
                 <span>Payment Issues? Click here for Help &amp; Support</span>
               </a>
             </div>
