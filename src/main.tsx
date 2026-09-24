@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { PrivacyPage, TermsPage, AUPPage, DisclaimerPage } from './LegalPages.tsx'
-import { PaymentHelpPage } from './PaymentHelpPage.tsx'
 import { 
   MalluChattingAppPage, 
   MalluTelegramChattingPage, 
@@ -24,7 +23,6 @@ const path = window.location.pathname;
 const isBaseRoute = path === '/' || path.endsWith('/malluchat/') || path.endsWith('/malluchat');
 let ComponentToRender = App;
 
-if (path.includes('/payment-help') || path.includes('/paymenthelp')) ComponentToRender = PaymentHelpPage;
 if (path.includes('/privacy')) ComponentToRender = PrivacyPage;
 if (path.includes('/terms')) ComponentToRender = TermsPage;
 if (path.includes('/aup')) ComponentToRender = AUPPage;

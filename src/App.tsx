@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, HelpCircle, ExternalLink } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -388,13 +388,6 @@ export default function App() {
 
   // Premium paywall states
   const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setIsPremium(localStorage.getItem('malluchat_premium') === 'true');
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
   const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
   const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
@@ -414,7 +407,7 @@ export default function App() {
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
   const [targetUpiId, setTargetUpiId] = useState<string>('BHARATPE2J0A0P6U4O28675@unitype');
   const [showPaymentSettings, setShowPaymentSettings] = useState<boolean>(false);
-  const [showQrCode, setShowQrCode] = useState<boolean>(true);
+  const [showQrCode, setShowQrCode] = useState<boolean>(false);
   const [currentTxnId, setCurrentTxnId] = useState<string>('');
   const [ringingTimeout, setRingingTimeout] = useState<any | null>(null);
   const ringingTimeoutRef = useRef<any>(null);
@@ -1147,7 +1140,6 @@ export default function App() {
       // If not premium, manual calls to demo users always trigger the paywall!
       const timeout = setTimeout(() => {
         setPaywallTriggerReason('calling');
-        setSelectedPlan(null);
         setShowPaywall(true);
         ringtone.stop();
       }, 1800);
@@ -1384,7 +1376,6 @@ export default function App() {
     } else {
       setPaywallTriggerReason('filter');
       setActiveCallingUser({ id: 'dummy-filter', name: filter === 'female' ? 'Females Only' : 'Males Only', avatar: '⭐', gender: filter });
-      setSelectedPlan(null);
       setShowPaywall(true);
     }
   };
@@ -1501,16 +1492,37 @@ export default function App() {
     setVerificationSubmitted(true);
     setIsVerifyingPayment(true);
 
+    // Simulate transaction validation
     setTimeout(() => {
       setIsVerifyingPayment(false);
+      setIsPremium(true);
+      localStorage.setItem('malluchat_premium', 'true');
+      setShowPaywall(false);
 
-      // Clean up dial / call triggers and stop ringing
+      // Clean up dial / call triggers
       if (ringingTimeout) clearTimeout(ringingTimeout);
       setRingingTimeout(null);
       ringtone.stop();
 
-      alert("Payment details submitted successfully! Your payment is under review. Please wait up to 24 hours for manual verification before calling access is unlocked.");
-    }, 1800);
+      alert("🎉 Premium access unlocked successfully! Enjoy unlimited random calls & gender filters.");
+
+      if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
+        // Automatically start the call!
+        setInCall(true);
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          .then((stream) => {
+            if (localVideoRef.current) {
+              localVideoRef.current.srcObject = stream;
+            }
+            peerEngine.localStream = stream;
+          })
+          .catch((err) => {
+            console.warn("Camera permission declined", err);
+          });
+      } else {
+        setActiveCallingUser(null);
+      }
+    }, 2500);
   };
 
   const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
@@ -1540,6 +1552,8 @@ export default function App() {
 
     const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
     setCurrentTxnId(newTxnId);
+
+    downloadUpiQrCode(plan.amount, plan.label, newTxnId);
   };
 
   const handleCopyUpi = () => {
@@ -1547,13 +1561,6 @@ export default function App() {
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
-
-  useEffect(() => {
-    if (showPaywall && !currentTxnId) {
-      const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
-      setCurrentTxnId(newTxnId);
-    }
-  }, [showPaywall, currentTxnId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -2762,12 +2769,12 @@ export default function App() {
                 : <>Connect with <span className="paywall-badge-title">{activeCallingUser.name}</span> and other nearby users instantly.</>}
             </p>
 
-            {/* Plans Selection Grid (Vertical Stack) */}
+            {/* Plans Selection Grid */}
             <div className="plans-grid">
               {[
                 { amount: 60, duration: '1 Day', label: '1 Day Pass', type: 'standard', badge: '' },
-                { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'POPULAR' },
-                { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 BEST VALUE' }
+                { amount: 100, duration: '1 Month', label: 'Monthly Pack', type: 'popular', badge: 'Popular' },
+                { amount: 150, duration: '3 Months', label: 'VIP Gold', type: 'vip', badge: '👑 Best Value' }
               ].map((plan) => (
                 <div
                   key={plan.amount}
@@ -2786,14 +2793,65 @@ export default function App() {
               ))}
             </div>
 
-            {/* Payment Details Panel - Only shown AFTER clicking a plan price */}
+            {/* Payment VPA Settings Panel (collapsible developer option) */}
+            <div style={{ marginTop: '10px', marginBottom: '10px', textAlign: 'left' }}>
+              <button
+                onClick={() => setShowPaymentSettings(!showPaymentSettings)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.75rem',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0
+                }}
+              >
+                {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
+              </button>
+
+              {showPaymentSettings && (
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  padding: '12px',
+                  marginTop: '8px',
+                  animation: 'fadeIn 0.2s ease-out'
+                }}>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
+                    Receiver UPI ID (VPA) for testing:
+                  </label>
+                  <input
+                    type="text"
+                    value={targetUpiId}
+                    onChange={(e) => setTargetUpiId(e.target.value.trim())}
+                    placeholder="Enter UPI ID (e.g. name@okaxis)"
+                    style={{
+                      width: '100%',
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      padding: '8px',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-main)',
+                      outline: 'none'
+                    }}
+                  />
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Change this to your own personal UPI VPA (e.g. `yourname@paytm`) to verify the links and QR codes work.
+                  </div>
+                </div>
+              )}
+            </div>
+
             {selectedPlan && (
               <div className="payment-details-panel">
-                <div style={{ fontSize: '0.94rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
-                  Scan QR Code to Pay
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '4px', fontWeight: 700 }}>
+                  Step 1: Scan the QR Code to Pay
                 </div>
-                <div style={{ fontSize: '0.82rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
-                  ⚠️ Pay exactly ₹{selectedPlan.amount} ({selectedPlan.duration} - {selectedPlan.label})
+                <div style={{ fontSize: '0.8rem', color: '#fbbf24', marginBottom: '14px', fontWeight: 600 }}>
+                  ⚠️ Pay exactly ₹{selectedPlan.amount} (Transaction will show ₹{selectedPlan.amount})
                 </div>
 
                 {/* Collapsible QR Code Section */}
@@ -2832,15 +2890,14 @@ export default function App() {
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'left', fontWeight: 600 }}>
                     Or manually transfer to UPI ID:
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
                     <div style={{
-                      flex: '1 1 180px',
-                      minWidth: 0,
+                      flex: 1,
                       background: 'rgba(0, 0, 0, 0.4)',
                       border: '1px solid rgba(255, 255, 255, 0.1)',
                       borderRadius: '8px',
-                      padding: '8px 10px',
-                      fontSize: '0.78rem',
+                      padding: '8px 12px',
+                      fontSize: '0.8rem',
                       fontFamily: 'monospace',
                       color: 'var(--text-main)',
                       overflow: 'hidden',
@@ -2852,13 +2909,12 @@ export default function App() {
                     <button
                       onClick={handleCopyUpi}
                       style={{
-                        flex: '0 0 auto',
                         background: copiedUpi ? 'var(--primary)' : 'rgba(255, 255, 255, 0.1)',
                         border: '1px solid rgba(255, 255, 255, 0.2)',
                         borderRadius: '8px',
                         color: copiedUpi ? 'black' : 'var(--text-main)',
-                        padding: '8px 14px',
-                        fontSize: '0.78rem',
+                        padding: '8px 16px',
+                        fontSize: '0.8rem',
                         fontWeight: 600,
                         cursor: 'pointer',
                         display: 'flex',
@@ -2878,9 +2934,6 @@ export default function App() {
             {selectedPlan && (
               <div className="verification-section">
                 <h4>Upload Payment Screenshot</h4>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', marginTop: '-4px' }}>
-                  Upload your transaction confirmation screenshot showing the UPI Reference / UTR number for manual verification.
-                </p>
                 {!paymentScreenshot ? (
                   <label className="upload-zone">
                     <input
@@ -2936,116 +2989,15 @@ export default function App() {
                 {verificationSubmitted && (
                   <div className="payment-warning-alert">
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span>
-                        {isVerifyingPayment
-                          ? 'Verifying transaction with UPI gateway, please wait...'
-                          : 'Your payment verification has been submitted. If your transaction shows successful in your bank/UPI app, it will activate automatically.'}
-                      </span>
-                      {!isVerifyingPayment && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                          <span style={{ fontSize: '0.78rem', color: '#fca5a5' }}>
-                            Facing a delay or error?
-                          </span>
-                          <a
-                            href="/payment-help"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              background: 'rgba(239, 68, 68, 0.2)',
-                              border: '1px solid rgba(239, 68, 68, 0.4)',
-                              color: '#fee2e2',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              textDecoration: 'none',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            Open Help <ExternalLink size={10} />
-                          </a>
-                        </div>
-                      )}
-                    </div>
+                    <span>
+                      {isVerifyingPayment
+                        ? 'Verifying transaction with UPI gateway, please wait...'
+                        : 'Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.'}
+                    </span>
                   </div>
                 )}
               </div>
             )}
-
-            {/* Bottom Links matching screenshot 1 */}
-            <div style={{ marginTop: '16px', marginBottom: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={() => setShowPaymentSettings(!showPaymentSettings)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--primary)',
-                  fontSize: '0.76rem',
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                  padding: '2px'
-                }}
-              >
-                {showPaymentSettings ? 'Hide Payment Settings' : 'Payment Settings (Change UPI ID)'}
-              </button>
-
-              <a
-                href="/payment-help"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--text-muted)',
-                  fontSize: '0.72rem',
-                  textDecoration: 'underline',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: 0.75,
-                  marginTop: '2px'
-                }}
-              >
-                <HelpCircle size={12} />
-                <span>Help / Payment Issues?</span>
-                <ExternalLink size={10} />
-              </a>
-
-              {showPaymentSettings && (
-                <div style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  width: '100%',
-                  marginTop: '4px',
-                  textAlign: 'left',
-                  animation: 'fadeIn 0.2s ease-out'
-                }}>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>
-                    Receiver UPI ID (VPA):
-                  </label>
-                  <input
-                    type="text"
-                    value={targetUpiId}
-                    onChange={(e) => setTargetUpiId(e.target.value.trim())}
-                    placeholder="Enter UPI ID (e.g. name@okaxis)"
-                    style={{
-                      width: '100%',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.15)',
-                      borderRadius: '8px',
-                      padding: '8px',
-                      fontSize: '0.8rem',
-                      color: 'var(--text-main)',
-                      outline: 'none'
-                    }}
-                  />
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -3117,7 +3069,7 @@ export default function App() {
         {/* Login Modal */}
         {showLoginModal && (
           <div className="call-overlay" style={{ zIndex: 2000 }}>
-            <div className="glass join-modal-card">
+            <div className="glass" style={{ padding: '2rem', borderRadius: '16px', maxWidth: '350px', width: '90%', textAlign: 'center', position: 'relative' }}>
               <button
                 className="icon-btn"
                 style={{ position: 'absolute', top: '15px', right: '15px' }}
@@ -3790,15 +3742,15 @@ export default function App() {
           <div className="chat-header">
             <div className="header-user-info">
               <div className="avatar">
-                <MalluLogo size={36} />
+                <MalluLogo size={32} />
               </div>
-              <div className="header-title-wrap">
+              <div style={{ marginLeft: '6px' }}>
                 {viewMode === 'private' ? (
-                  <div className="header-user-name" style={{ color: 'var(--primary)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--primary)' }}>
                     {remoteUsername}
                   </div>
                 ) : (
-                  <div className="header-user-name">
+                  <div style={{ fontWeight: 600 }}>
                     {viewMode === 'public'
                       ? 'Mallu Public Chat'
                       : 'Nearby Users'}
@@ -4190,7 +4142,7 @@ export default function App() {
                 </div>
               )}
 
-              <div className="chat-input-controls-row">
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                 {isRecording ? (
                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-main)', fontWeight: 'bold' }}>
                     <button className="icon-btn" onClick={cancelRecording} title="Cancel Recording" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', padding: '10px', borderRadius: '50%' }}>
@@ -4296,7 +4248,7 @@ export default function App() {
           {/* Bottom Navigation Bar */}
           <div className="bottom-bar-nav">
             <div className={`nav-item ${viewMode === 'public' ? 'active' : ''}`} onClick={() => setViewMode('public')}>
-              <Users size={22} />
+              <Users size={24} />
               World
             </div>
             <div className={`nav-item ${viewMode === 'random' ? 'active' : ''}`} onClick={() => {
@@ -4306,12 +4258,12 @@ export default function App() {
               }
               setViewMode('random');
             }}>
-              <PhoneCall size={22} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
-              Nearby
+              <PhoneCall size={24} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
+              Nearby Users
             </div>
             {!isApp && (
               <a className="nav-item" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
-                <Download size={22} />
+                <Download size={24} />
                 App
               </a>
             )}
@@ -4322,8 +4274,8 @@ export default function App() {
               }
               setViewMode('private');
             }}>
-              <Lock size={22} />
-              Private
+              <Lock size={24} />
+              Private Space
             </div>
           </div>
         </div>
