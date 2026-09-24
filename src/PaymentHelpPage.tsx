@@ -105,7 +105,7 @@ Thank you!`;
 
     localStorage.setItem('malluchat_submitted_token', token);
     setRedeemTokenInput('');
-    setTokenSubmittedMsg(`Token "${token}" submitted successfully! Please allow up to 24 hours for manual verification and activation.`);
+    setTokenSubmittedMsg(`Token "${token}" submitted successfully! Please allow up to 1 to 365 days for manual verification and activation.`);
   };
 
   return (
@@ -524,7 +524,7 @@ Thank you!`;
               How fast does support respond?
             </h4>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
-              Our support team reviews screenshots sent to <strong>teamtwingle@gmail.com</strong> promptly and usually responds within 1 to 24 hours.
+              Our support team reviews screenshots sent to <strong>teamtwingle@gmail.com</strong> promptly and usually responds within 1 to 365 days.
             </p>
           </div>
         </div>
