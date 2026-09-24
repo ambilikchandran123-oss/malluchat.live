@@ -3607,22 +3607,20 @@ export default function App() {
             </div>
 
             {/* Bottom Actions */}
-            <div className="whatsapp-dock" style={{ gap: '2.5rem', padding: '12px 28px' }}>
+            <div className="whatsapp-dock whatsapp-incoming-dock">
               <button
                 className="whatsapp-ctrl-btn end-call"
                 onClick={handleRejectCall}
                 title="Decline Call"
-                style={{ width: '62px', height: '62px' }}
               >
-                <PhoneOff size={26} />
+                <PhoneOff size={24} />
               </button>
               <button
-                className="whatsapp-ctrl-btn"
+                className="whatsapp-ctrl-btn whatsapp-accept-btn"
                 onClick={handleAcceptCall}
                 title="Accept Call"
-                style={{ width: '62px', height: '62px', background: '#25d366', color: '#ffffff', boxShadow: '0 6px 20px rgba(37, 211, 102, 0.45)' }}
               >
-                {incomingCallRequest.isVideo ? <Video size={26} /> : <Phone size={26} />}
+                {incomingCallRequest.isVideo ? <Video size={24} /> : <Phone size={24} />}
               </button>
             </div>
           </div>
