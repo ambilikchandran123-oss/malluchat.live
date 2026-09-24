@@ -186,6 +186,12 @@ const routeMetadata = {
     description: 'Disclaimer for MalluChat free online video call and strangers chat platform.',
     h1: 'Disclaimer - MalluChat',
     intro: 'Service disclaimer regarding user-generated content and third-party interactions on MalluChat.live.'
+  },
+  'payment-help': {
+    title: 'Payment Help & Customer Support | MalluChat',
+    description: 'MalluChat Payment Help & Customer Support. Resolve transaction issues, get manual verification, and redeem calling tokens via teamtwingle@gmail.com.',
+    h1: 'Payment Help & Customer Support - MalluChat',
+    intro: 'Need help with your payment? Review our strict non-refund policy, contact support at teamtwingle@gmail.com, or submit your unique calling token.'
   }
 };
 

@@ -19,10 +19,12 @@ import {
   MalluVideoCallPage,
   MalluOpenChatPage
 } from './SeoPages.tsx'
+import { PaymentHelpPage } from './PaymentHelpPage.tsx'
 const path = window.location.pathname;
 const isBaseRoute = path === '/' || path.endsWith('/malluchat/') || path.endsWith('/malluchat');
 let ComponentToRender = App;
 
+if (path.includes('/payment-help')) ComponentToRender = PaymentHelpPage;
 if (path.includes('/privacy')) ComponentToRender = PrivacyPage;
 if (path.includes('/terms')) ComponentToRender = TermsPage;
 if (path.includes('/aup')) ComponentToRender = AUPPage;
