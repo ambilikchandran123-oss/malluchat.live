@@ -716,21 +716,25 @@ export default function App() {
       return;
     }
     if (msg.type === 'decline') {
-      if (privateConnectionTimeoutRef.current) {
-        clearTimeout(privateConnectionTimeoutRef.current);
-        privateConnectionTimeoutRef.current = null;
+      if (statusRef.current === 'connecting' && (!msg.senderId || !activePrivatePeerIdRef.current || msg.senderId === activePrivatePeerIdRef.current)) {
+        if (privateConnectionTimeoutRef.current) {
+          clearTimeout(privateConnectionTimeoutRef.current);
+          privateConnectionTimeoutRef.current = null;
+        }
+        alert(`${msg.senderName || 'The user'} declined your chat request.`);
+        setViewMode('public');
+        setStatus('disconnected');
+        setActivePrivatePeerId('');
       }
-      alert(`${msg.senderName || 'The user'} declined your chat request.`);
-      setViewMode('public');
-      setStatus('disconnected');
-      setActivePrivatePeerId('');
       return;
     }
     if (msg.type === 'chat_leave') {
-      if (viewModeRef.current === 'private') {
+      if (viewModeRef.current === 'private' && (!msg.senderId || !activePrivatePeerIdRef.current || msg.senderId === activePrivatePeerIdRef.current)) {
         setStatus('disconnected');
         alert(`${msg.senderName || 'The other user'} has left the private chat.`);
         setViewMode('public');
+        setActivePrivatePeerId('');
+        setMessages([]);
       }
       return;
     }
@@ -1781,13 +1785,16 @@ export default function App() {
             const parsed = JSON.parse(stored);
             const now = Date.now();
             const filtered = parsed.filter((m: any) => now - m.timestamp < 86400000);
-            setMessages(filtered);
+            setMessages(prev => {
+              const map = new Map();
+              filtered.forEach((m: any) => map.set(m.id, m));
+              prev.forEach((m: any) => map.set(m.id, m));
+              return Array.from(map.values()).sort((a: any, b: any) => a.timestamp - b.timestamp);
+            });
             localStorage.setItem(`malluchat_private_messages_${remotePeerId}`, JSON.stringify(filtered));
           } catch (e) {
-            setMessages([]);
+            // Keep in-memory messages if storage fails to parse
           }
-        } else {
-          setMessages([]);
         }
       }
       setTimeout(() => {
@@ -1802,9 +1809,18 @@ export default function App() {
     };
 
     peerEngine.onDisconnected = () => {
-      handleLeavePrivateChatRef.current();
-      if (viewModeRef.current === 'private') {
-        alert("The other user has disconnected.");
+      console.warn("PeerEngine P2P DataConnection closed. Seamlessly continuing via backend relay...");
+      // Attempt background P2P reconnection without disrupting the active private chat
+      if (viewModeRef.current === 'private' && activePrivatePeerIdRef.current) {
+        setTimeout(() => {
+          if (viewModeRef.current === 'private' && activePrivatePeerIdRef.current && (!peerEngine.connection || !peerEngine.connection.open)) {
+            try {
+              peerEngine.connectToPeer(activePrivatePeerIdRef.current);
+            } catch (e) {
+              console.warn("Background P2P reconnect error:", e);
+            }
+          }
+        }, 1500);
       }
     };
 

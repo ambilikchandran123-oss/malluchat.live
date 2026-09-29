@@ -167,15 +167,29 @@ export class PeerEngine {
         }
     }
 
+    public heartbeatInterval: any = null;
+
     setupConnection(conn: DataConnection) {
-        // If we already have a connection, don't let a new one overwrite it immediately
-        if (this.connection && this.connection.open && this.connection.peer !== conn.peer) {
-            return;
+        // If we already have a connection with this peer, close old duplicate safely
+        if (this.connection && this.connection.open && this.connection.peer === conn.peer && this.connection !== conn) {
+            try { this.connection.close(); } catch (_) {}
         }
 
         this.connection = conn;
 
+        const startHeartbeat = () => {
+            if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = setInterval(() => {
+                if (this.connection && this.connection.open) {
+                    try {
+                        this.connection.send({ type: 'ping' as any, timestamp: Date.now() } as any);
+                    } catch (_) {}
+                }
+            }, 10000); // 10-second keepalive prevents NAT drop
+        };
+
         const handleOpen = () => {
+            startHeartbeat();
             if (this.onConnected) this.onConnected();
         };
 
@@ -186,19 +200,42 @@ export class PeerEngine {
         }
 
         conn.on('data', (data: any) => {
+            // Silently process keepalive heartbeat
+            if (data?.type === 'ping') {
+                if (this.connection && this.connection.open) {
+                    try { this.connection.send({ type: 'pong' as any, timestamp: Date.now() } as any); } catch (_) {}
+                }
+                return;
+            }
+            if (data?.type === 'pong') {
+                return;
+            }
             if (this.onMessage) {
                 this.onMessage(data as IncomingMessage);
             }
         });
 
         conn.on('close', () => {
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+            }
+            if (this.connection === conn) {
+                this.connection = null;
+            }
             if (this.onDisconnected) this.onDisconnected();
-            this.connection = null;
         });
 
-        conn.on('error', () => {
+        conn.on('error', (err) => {
+            console.warn("Peer connection error:", err);
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+            }
+            if (this.connection === conn) {
+                this.connection = null;
+            }
             if (this.onDisconnected) this.onDisconnected();
-            this.connection = null;
         });
     }
 
@@ -243,8 +280,12 @@ export class PeerEngine {
     }
 
     disconnectChat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
         if (this.connection) {
-            this.connection.close();
+            try { this.connection.close(); } catch (_) {}
             this.connection = null;
         }
         this.endCall(true);

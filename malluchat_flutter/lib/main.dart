@@ -39,7 +39,6 @@ class WebViewScreen extends StatefulWidget {
 class _WebViewScreenState extends State<WebViewScreen> {
   final GlobalKey webViewKey = GlobalKey();
   InAppWebViewController? webViewController;
-  PullToRefreshController? pullToRefreshController;
   double progress = 0;
 
   final InAppWebViewSettings settings = InAppWebViewSettings(
@@ -60,21 +59,8 @@ class _WebViewScreenState extends State<WebViewScreen> {
     geolocationEnabled: true,
     useHybridComposition: true,
     mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+    hardwareAcceleration: true,
   );
-
-  @override
-  void initState() {
-    super.initState();
-    pullToRefreshController = PullToRefreshController(
-      settings: PullToRefreshSettings(
-        color: const Color(0xFF10B981),
-        backgroundColor: const Color(0xFF1A1D24),
-      ),
-      onRefresh: () async {
-        webViewController?.reload();
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,17 +81,10 @@ class _WebViewScreenState extends State<WebViewScreen> {
                 key: webViewKey,
                 initialUrlRequest: URLRequest(url: WebUri("https://malluchat.live")),
                 initialSettings: settings,
-                pullToRefreshController: pullToRefreshController,
                 onWebViewCreated: (controller) {
                   webViewController = controller;
                 },
-                onLoadStop: (controller, url) async {
-                  pullToRefreshController?.endRefreshing();
-                },
                 onProgressChanged: (controller, prog) {
-                  if (prog == 100) {
-                    pullToRefreshController?.endRefreshing();
-                  }
                   setState(() {
                     progress = prog / 100;
                   });
