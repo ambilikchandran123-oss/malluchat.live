@@ -149,7 +149,7 @@ const routeMetadata = {
     title: 'Mallu Chat App - Malayalam Stranger Video Call Online | MalluChat',
     description: 'Use Mallu Chat App online for instant stranger video calling, anonymous group chat rooms, and web P2P calls on mobile and desktop.',
     h1: 'Mallu Chat App - Malayalam Stranger Chat & Video Call',
-    intro: 'Use the <strong>Mallu Chat App</strong> directly in your mobile browser or install the Android APK for fast stranger chat and WebRTC video calling.'
+    intro: 'Use the <strong>Mallu Chat App</strong> directly in your mobile browser or Android app for fast stranger chat and WebRTC video calling.'
   },
   'mallu-telegram-chatting': {
     title: 'Mallu Telegram Chat Alternative - Malayalam Stranger Chat | MalluChat',

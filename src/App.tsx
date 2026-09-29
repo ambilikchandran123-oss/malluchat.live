@@ -483,9 +483,6 @@ export default function App() {
   const [adSponsor, setAdSponsor] = useState('Sponsor');
   const [adType, setAdType] = useState<'custom' | 'google'>('custom');
 
-  // Detect if running inside Native App
-  const isApp = typeof navigator !== 'undefined' && navigator.userAgent.includes('MalluChatApp');
-
   // Incoming personal chat requests queue & management
   const [incomingRequests, setIncomingRequests] = useState<IncomingChatRequest[]>([]);
   const incomingRequestsRef = useRef(incomingRequests);
@@ -3099,12 +3096,6 @@ export default function App() {
               <span className="requests-badge-pill">{incomingRequests.length}</span>
             )}
           </div>
-          {!isApp && (
-            <a className="nav-item-desktop" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '10px', paddingTop: '15px' }}>
-              <Download size={20} />
-              Get Android App
-            </a>
-          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -4357,12 +4348,6 @@ export default function App() {
               <PhoneCall size={24} className={viewMode === 'random' ? '' : 'calling-icon-anim'} />
               Nearby Users
             </div>
-            {!isApp && (
-              <a className="nav-item" href="/malluchat.apk" download="malluchat.apk" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
-                <Download size={24} />
-                App
-              </a>
-            )}
             <div className={`nav-item ${viewMode === 'private' ? 'active' : ''}`} onClick={() => {
               if (!username && viewMode === 'public') {
                 setShowLoginModal(true);
