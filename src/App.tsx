@@ -4392,14 +4392,14 @@ export default function App() {
               <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>Promo</span>
             </div>
             <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '12px 20px', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '1px', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
-              💖 Twingle.online
+              📹 Free Video Calling
             </div>
             <div style={{ fontSize: '0.85rem', lineHeight: '1.5', textAlign: 'center', color: 'var(--text-main)' }}>
-              <strong>FREE MALLU DATING APP</strong>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Find love, marriage, and friendship in Kerala.</div>
+              <strong>FREE VIDEO CALLING</strong>
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Meet and video call with people worldwide live.</div>
             </div>
-            <a href="https://twingle.online" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
-              Visit twingle.online
+            <a href="https://video.tvwebapp.com/?ivd=181861284&channel=1" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
+              Start Free Video Call
             </a>
           </div>
 
