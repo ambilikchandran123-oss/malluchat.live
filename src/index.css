@@ -2885,3 +2885,222 @@ body {
     align-items: flex-end;
   }
 }
+
+/* ==========================================================================
+   Mobile & Responsive Sponsor Video Calling Styles
+   ========================================================================== */
+
+/* Top Mobile Sponsor Banner (Phones & Tablets) */
+.mobile-sponsor-banner {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .mobile-sponsor-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 14px;
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.09));
+    border-bottom: 1px solid rgba(16, 185, 129, 0.28);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 100;
+    flex-shrink: 0;
+  }
+
+  .mobile-sponsor-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mobile-sponsor-badge {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .mobile-sponsor-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mobile-sponsor-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    white-space: nowrap;
+  }
+
+  .mobile-sponsor-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @media (max-width: 480px) {
+    .mobile-sponsor-sub {
+      display: none;
+    }
+  }
+
+  .mobile-sponsor-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--primary);
+    color: #000 !important;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 6px 13px;
+    border-radius: 16px;
+    text-decoration: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .mobile-sponsor-cta:active {
+    transform: scale(0.96);
+  }
+}
+
+/* Matches Sponsor Card in Nearby Users */
+.matches-sponsor-card {
+  margin: 10px 1.5rem 12px 1.5rem;
+  padding: 11px 15px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.16), rgba(5, 150, 105, 0.06));
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+  .matches-sponsor-card {
+    margin: 8px 1rem 10px 1rem;
+    padding: 9px 12px;
+  }
+}
+
+.matches-sponsor-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.matches-sponsor-icon {
+  font-size: 1.6rem;
+  background: rgba(16, 185, 129, 0.2);
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.matches-sponsor-details {
+  min-width: 0;
+}
+
+.matches-sponsor-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.matches-sponsor-title {
+  font-weight: 800;
+  font-size: 0.88rem;
+  color: #fff;
+}
+
+.matches-sponsor-badge {
+  font-size: 0.6rem;
+  background: var(--primary);
+  color: #000;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.matches-sponsor-desc {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.25;
+}
+
+.matches-sponsor-btn {
+  background: var(--primary);
+  color: #000 !important;
+  font-weight: 800;
+  font-size: 0.78rem;
+  padding: 7px 14px;
+  border-radius: 18px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.matches-sponsor-btn:active {
+  transform: scale(0.96);
+}
+
+/* Chat Sponsor Pill in World Chat */
+.chat-sponsor-pill {
+  margin: 6px auto 12px auto;
+  max-width: 94%;
+  width: 440px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(255, 255, 255, 0.03));
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chat-sponsor-btn {
+  background: var(--primary);
+  color: #000 !important;
+  font-weight: 800;
+  font-size: 0.74rem;
+  padding: 6px 12px;
+  border-radius: 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.chat-sponsor-btn:active {
+  transform: scale(0.96);
+}

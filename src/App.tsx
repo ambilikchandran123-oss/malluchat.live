@@ -3899,6 +3899,25 @@ export default function App() {
             </div>
           </div>
 
+          {/* Mobile Sponsor Banner (Prominent on Smartphones & Tablets) */}
+          <div className="mobile-sponsor-banner">
+            <div className="mobile-sponsor-left">
+              <span className="mobile-sponsor-badge">Sponsored</span>
+              <div className="mobile-sponsor-info">
+                <span className="mobile-sponsor-title">📹 Free Video Calling</span>
+                <span className="mobile-sponsor-sub">Live 1v1 Video Chat</span>
+              </div>
+            </div>
+            <a
+              href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mobile-sponsor-cta"
+            >
+              Call Now ➜
+            </a>
+          </div>
+
           {/* Random Calling View */}
           {viewMode === 'random' && (
             <div className="random-call-container">
@@ -3929,6 +3948,30 @@ export default function App() {
                   </div>
                 </div>
 
+              </div>
+
+              {/* Featured Free Video Calling Card */}
+              <div className="matches-sponsor-card">
+                <div className="matches-sponsor-left">
+                  <div className="matches-sponsor-icon">📹</div>
+                  <div className="matches-sponsor-details">
+                    <div className="matches-sponsor-header">
+                      <span className="matches-sponsor-title">Free Video Calling</span>
+                      <span className="matches-sponsor-badge">PROMO</span>
+                    </div>
+                    <div className="matches-sponsor-desc">
+                      Instant 1-on-1 private video chat with people worldwide
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="matches-sponsor-btn"
+                >
+                  Join Call ➜
+                </a>
               </div>
 
               {/* Matches List Grid */}
@@ -4055,6 +4098,29 @@ export default function App() {
                   ? 'Welcome to Mallu Public Chat. Anyone can see messages here.'
                   : 'Secure Connection Established. Messages are direct and not stored anywhere.'}
               </div>
+
+              {viewMode === 'public' && (
+                <div className="chat-sponsor-pill">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>📹</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#fff' }}>Free Video Calling</span>
+                        <span style={{ fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '4px' }}>Sponsored</span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Meet & video call online instantly</div>
+                    </div>
+                  </div>
+                  <a
+                    href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="chat-sponsor-btn"
+                  >
+                    Start Call
+                  </a>
+                </div>
+              )}
 
               {(viewMode === 'private' ? messages : publicMessages).map((msg, idx) => {
                 if (viewMode === 'public' && !isPublicChatMessage(msg)) return null;
