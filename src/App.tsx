@@ -3911,7 +3911,7 @@ export default function App() {
             <a
               href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener"
               className="mobile-sponsor-cta"
             >
               Call Now ➜
@@ -3967,7 +3967,7 @@ export default function App() {
                 <a
                   href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
                   target="_blank"
-                  rel="noopener noreferrer"
+                  rel="noopener"
                   className="matches-sponsor-btn"
                 >
                   Join Call ➜
@@ -4114,7 +4114,7 @@ export default function App() {
                   <a
                     href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
                     target="_blank"
-                    rel="noopener noreferrer"
+                    rel="noopener"
                     className="chat-sponsor-btn"
                   >
                     Start Call
@@ -4464,7 +4464,7 @@ export default function App() {
               <strong>FREE VIDEO CALLING</strong>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Meet and video call with people worldwide live.</div>
             </div>
-            <a href="https://video.tvwebapp.com/?ivd=181861284&channel=1" target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
+            <a href="https://video.tvwebapp.com/?ivd=181861284&channel=1" target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
               Start Free Video Call
             </a>
           </div>
