@@ -1,26 +1,30 @@
 # MalluChat
 
-> MalluChat (https://malluchat.live/) is Kerala's #1 free Mallu chatting website, anonymous Mallu stranger chat website, and Malayalam chatting platform. It connects Malayalees worldwide for live Kerala chat rooms, stranger text chat, random matching, and 1-on-1 WebRTC video calls without registration or phone number verification.
+> MalluChat (https://malluchat.live/) is Kerala's #1 free Mallu chat platform, online Malayalam chat room network, and anonymous Mallu stranger chat website. It connects Malayalees worldwide for live Kerala chat rooms, stranger text chat, random matching, and 1-on-1 WebRTC video calls without registration, fees, or phone number verification.
 
-## Primary Services
+## Primary Services & Programmatic Chat Pages
 
-- [Mallu Chatting Website (Homepage)](https://malluchat.live/): Kerala's #1 Mallu chatting website, Mallu chat room, live Mallu chat, & free video call website.
-- [Mallu Chatting Website Online](https://malluchat.live/mallu-chatting-website): Live Kerala community chat lobbies and rooms without registration.
-- [Mallu Chat Rooms](https://malluchat.live/mallu-chat-rooms): Public and private Malayalam chat rooms & chatroom lobbies for Kerala and Gulf NRIs.
-- [Mallu Video Call](https://malluchat.live/mallu-video-call): Free 1-on-1 Malayalam peer-to-peer WebRTC video calling & random calls.
-- [Mallu Chat Website](https://malluchat.live/mallu-chat-website): Live Kerala community chat lobbies and rooms without registration.
-- [Live Mallu Chat](https://malluchat.live/mallu-chat-live): Real-time live Malayalam chat rooms and instant stranger video call matching.
+- [Mallu Chat (Homepage)](https://malluchat.live/): Kerala's #1 Mallu chat online platform, Mallu chat room, live Malayalam chat, & free video calling website.
+- [Mallu Chat Online](https://malluchat.live/mallu-chat-online): Free anonymous Malayalam chat room, live stranger chat, and instant 1-on-1 Mallu video calls with zero registration.
+- [Mallu Chat Room](https://malluchat.live/mallu-chat-room): Public and private Malayalam chat rooms & chatroom lobbies for Kerala (Kochi, Trivandrum, Kozhikode, Thrissur) and Gulf NRIs.
+- [Mallu Video Calling](https://malluchat.live/mallu-video-calling): Free 1-on-1 Malayalam video calls, random stranger video match, and live chat with zero coins or downloads.
+- [Mallu Stargres Chat](https://malluchat.live/mallu-stargres-chat): Anonymous Malayalam stranger chat & 1-on-1 video call matching with zero signup.
+- [Mallu Roundam Chat](https://malluchat.live/mallu-roundam-chat): Instant 1-tap random Malayalam stranger pairing and free video calls.
+- [Mallu Chating Online](https://malluchat.live/mallu-chating-online): #1 free Kerala chatting website for instant anonymous Malayalam rooms and stranger messages.
+- [Mallu Free Chat Room](https://malluchat.live/mallu-free-chat-room): 100% free Kerala chat rooms online without coins, credit cards, or registration.
+- [Mallu Kambi Chat](https://malluchat.live/mallu-kambi-chat): Anonymous late-night Malayalam chat rooms, private 1-on-1 stranger chats, spicy Kerala banter, and encrypted video calls with zero signup.
+- [Mallu Online Chat](https://malluchat.live/mallu-online-chat): Kerala strangers chatting and live video rooms.
+- [Mallu Random Video Calling](https://malluchat.live/mallu-random-video-calling): 1-click random video chat with Malayalam strangers across Kerala and Gulf NRIs.
+- [Mallu Chatting Website](https://malluchat.live/mallu-chatting-website): Live Kerala community chat lobbies and rooms without registration.
 - [Mallu Stranger Chat Website](https://malluchat.live/mallu-stranger-chat-website): Anonymous 1-on-1 text messaging and stranger video calling for Malayalis.
 - [Mallu Random Chatting Website](https://malluchat.live/mallu-random-chatting-website): 1-click random stranger matching, text chat, and WebRTC video calls.
 - [Malayalam Chatting Website](https://malluchat.live/malayalam-chatting-website): Kerala's top online chatting website for free anonymous chat.
-- [Mallu Free Video Calling Website](https://malluchat.live/mallu-free-video-call): High-definition peer-to-peer WebRTC voice and video calling.
-- [Mallu Random Video Calling Website](https://malluchat.live/mallu-random-video-call): Single-click random video matching with online Kerala strangers.
-- [Malayalam Chat Online](https://malluchat.live/malayalam-chat-online): Malayalam and Manglish group discussions.
 - [Mallu Chat App](https://malluchat.live/mallu-chatting-app): Web-based progressive web application interface and Android app.
 
-## Optional & Legal
+## Legal & Compliance
 
 - [Privacy Policy](https://malluchat.live/privacy): Privacy policy and zero data logging guidelines.
 - [Terms of Service](https://malluchat.live/terms): Acceptable terms of service for MalluChat users.
 - [Acceptable Use Policy](https://malluchat.live/aup): Community usage guidelines and anti-harassment rules.
 - [Disclaimer](https://malluchat.live/disclaimer): Service disclaimer and safety information.
+- [Payment Help](https://malluchat.live/payment-help): Customer support and token help.
