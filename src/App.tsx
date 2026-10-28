@@ -3007,11 +3007,13 @@ Thank you!`
               <div className="verification-section">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <h4 style={{ margin: 0 }}>Step 2: Upload Payment Screenshot</h4>
-                  <span
-                    className={`attempts-counter-pill ${verificationAttempts >= 3 ? 'exhausted' : verificationAttempts > 0 ? 'warning' : ''}`}
-                  >
-                    Attempts: {Math.min(verificationAttempts, 3)}/3
-                  </span>
+                  {verificationAttempts > 0 && (
+                    <span
+                      className={`attempts-counter-pill ${verificationAttempts >= 3 ? 'exhausted' : 'warning'}`}
+                    >
+                      Attempts: {Math.min(verificationAttempts, 3)}/3
+                    </span>
+                  )}
                 </div>
 
                 {verificationAttempts >= 3 ? (
@@ -3157,7 +3159,7 @@ Thank you!`
                           Verifying transaction with UPI gateway...
                         </span>
                       ) : (
-                        `Submit Payment Verification (Attempt ${verificationAttempts + 1} of 3)`
+                        'Submit Payment Verification'
                       )}
                     </button>
 
