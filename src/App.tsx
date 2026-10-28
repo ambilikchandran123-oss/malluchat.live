@@ -3,7 +3,7 @@ import { MalluLogo } from './MalluLogo';
 import { PeerEngine } from './utils/peer-engine';
 import { isSpam, RateLimiter } from './utils/spam-filter';
 import { ringtone } from './utils/ringtone';
-import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, HelpCircle } from 'lucide-react';
+import { Send, Phone, PhoneCall, Link as LinkIcon, Copy, Mic, Check, CheckCheck, MicOff, PhoneOff, X, Reply, Trash2, Video, VideoOff, Users, Lock, Download, Shuffle, Crown, Upload, AlertTriangle, MapPin, Image as ImageIcon, Camera, Loader2, ChevronDown, SwitchCamera, Volume2, VolumeX, UserPlus, Clock, Inbox, HelpCircle, Mail } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import { GifPickerModal } from './components/GifPickerModal';
@@ -395,7 +395,7 @@ export default function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Premium paywall states
-  const [isPremium, setIsPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
+  const [isPremium] = useState<boolean>(() => localStorage.getItem('malluchat_premium') === 'true');
   const [paywallTriggerReason, setPaywallTriggerReason] = useState<'calling' | 'filter'>('calling');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState<boolean>(false);
   const [remoteCameraStatus, setRemoteCameraStatus] = useState<boolean>(false);
@@ -411,7 +411,17 @@ export default function App() {
   const [selectedPlan, setSelectedPlan] = useState<{ amount: number; duration: string; label: string } | null>(null);
   const [paymentScreenshot, setPaymentScreenshot] = useState<string | null>(null);
   const [screenshotFileName, setScreenshotFileName] = useState<string>('');
-  const [verificationSubmitted, setVerificationSubmitted] = useState<boolean>(false);
+  const [, setVerificationSubmitted] = useState<boolean>(false);
+  const [verificationAttempts, setVerificationAttempts] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('malluchat_payment_verification_attempts');
+      return saved ? parseInt(saved, 10) : 0;
+    } catch (e) {
+      return 0;
+    }
+  });
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [copiedSupportEmail, setCopiedSupportEmail] = useState<boolean>(false);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
   const [targetUpiId, setTargetUpiId] = useState<string>('BHARATPE2J0A0P6U4O28675@unitype');
   const [showPaymentSettings, setShowPaymentSettings] = useState<boolean>(false);
@@ -1416,6 +1426,7 @@ export default function App() {
     setScreenshotFileName('');
     setVerificationSubmitted(false);
     setIsVerifyingPayment(false);
+    setVerificationError(null);
     setCopiedUpi(false);
     setShowPaymentSettings(false);
     setCurrentTxnId('');
@@ -1499,40 +1510,76 @@ export default function App() {
   };
 
   const handleVerifyPayment = () => {
+    if (verificationAttempts >= 3) return;
+
     setVerificationSubmitted(true);
     setIsVerifyingPayment(true);
+    setVerificationError(null);
 
-    // Simulate transaction validation
+    // Simulate transaction validation check
     setTimeout(() => {
       setIsVerifyingPayment(false);
-      setIsPremium(true);
-      localStorage.setItem('malluchat_premium', 'true');
-      setShowPaywall(false);
+      const nextAttempts = verificationAttempts + 1;
+      setVerificationAttempts(nextAttempts);
+      try {
+        localStorage.setItem('malluchat_payment_verification_attempts', nextAttempts.toString());
+      } catch (e) {}
 
       // Clean up dial / call triggers
       if (ringingTimeout) clearTimeout(ringingTimeout);
       setRingingTimeout(null);
       ringtone.stop();
 
-      alert("🎉 Premium access unlocked successfully! Enjoy unlimited random calls & gender filters.");
-
-      if (activeCallingUser && activeCallingUser.id !== 'dummy-filter') {
-        // Automatically start the call!
-        setInCall(true);
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          .then((stream) => {
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream;
-            }
-            peerEngine.localStream = stream;
-          })
-          .catch((err) => {
-            console.warn("Camera permission declined", err);
-          });
+      // DO NOT unlock feature and DO NOT show success message
+      if (nextAttempts < 3) {
+        const remaining = 3 - nextAttempts;
+        setVerificationError(
+          `Payment not verified: Suspected fake payment or Transaction ID (UTR) is not clearly visible in your screenshot. You have ${remaining} chance${remaining === 1 ? '' : 's'} remaining to submit a valid screenshot.`
+        );
+        // Reset uploaded file to allow user to choose another screenshot
+        setPaymentScreenshot(null);
+        setScreenshotFileName('');
+        setVerificationSubmitted(false);
       } else {
-        setActiveCallingUser(null);
+        // 3rd attempt reached: Block further submissions permanently and display mailing option
+        setVerificationError(
+          `Payment not verified: Suspected fake payment or Transaction ID (UTR) is missing or unreadable. Maximum verification attempts (3/3) exceeded. Automated screenshot submission is now disabled.`
+        );
+        setVerificationSubmitted(true);
       }
     }, 2500);
+  };
+
+  const handleOpenSupportMail = () => {
+    const supportEmail = 'teamtwingle@gmail.com';
+    const planName = selectedPlan?.label || 'Premium Calling Plan';
+    const planAmount = selectedPlan?.amount || 60;
+    const subject = encodeURIComponent(`MalluChat Payment Verification Issue - Plan ₹${planAmount}`);
+    const body = encodeURIComponent(
+`Hello MalluChat Support Team,
+
+My automated payment verification failed because the transaction ID / UTR could not be validated automatically (3 verification attempts exceeded).
+
+Please manually verify my attached payment screenshot and credit my account access.
+
+--- Transaction & Account Details ---
+• User / Device ID: ${myId}
+• Reference ID: ${currentTxnId || 'MC' + Date.now()}
+• Selected Plan: ${planName} (₹${planAmount})
+• Target UPI ID: ${targetUpiId}
+• Date & Time: ${new Date().toLocaleString()}
+
+[NOTE]: I have attached my official payment receipt screenshot showing the full 12-digit UPI UTR / Transaction reference number to this email.
+
+Thank you!`
+    );
+    window.location.href = `mailto:${supportEmail}?subject=${subject}&body=${body}`;
+  };
+
+  const handleCopySupportEmail = () => {
+    navigator.clipboard.writeText('teamtwingle@gmail.com');
+    setCopiedSupportEmail(true);
+    setTimeout(() => setCopiedSupportEmail(false), 2000);
   };
 
   const downloadUpiQrCode = async (amount: number, planLabel: string, txnId: string) => {
@@ -1559,6 +1606,7 @@ export default function App() {
     setPaymentScreenshot(null);
     setScreenshotFileName('');
     setVerificationSubmitted(false);
+    setVerificationError(null);
 
     const newTxnId = 'MC' + Date.now() + Math.floor(Math.random() * 1000);
     setCurrentTxnId(newTxnId);
@@ -2957,68 +3005,169 @@ export default function App() {
 
             {selectedPlan && (
               <div className="verification-section">
-                <h4>Upload Payment Screenshot</h4>
-                {!paymentScreenshot ? (
-                  <label className="upload-zone">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setScreenshotFileName(file.name);
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            setPaymentScreenshot(event.target?.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                    <Upload className="upload-icon" size={24} />
-                    <div className="upload-zone-text">Click to upload or drag screenshot here</div>
-                  </label>
-                ) : (
-                  <div className="screenshot-preview-container">
-                    <img src={paymentScreenshot} alt="Payment screenshot preview" className="screenshot-preview" />
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', wordBreak: 'break-all' }}>
-                      {screenshotFileName}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h4 style={{ margin: 0 }}>Step 2: Upload Payment Screenshot</h4>
+                  <span
+                    className={`attempts-counter-pill ${verificationAttempts >= 3 ? 'exhausted' : verificationAttempts > 0 ? 'warning' : ''}`}
+                  >
+                    Attempts: {Math.min(verificationAttempts, 3)}/3
+                  </span>
+                </div>
+
+                {verificationAttempts >= 3 ? (
+                  /* 3rd Attempt Reached: Submission permanently blocked + mailing option */
+                  <div className="verification-locked-card">
+                    <div className="verification-locked-header">
+                      <AlertTriangle size={24} className="locked-icon" />
+                      <div>
+                        <div className="locked-title">Payment Verification Blocked</div>
+                        <div className="locked-subtitle">Maximum 3 of 3 attempts used</div>
+                      </div>
                     </div>
+
+                    <div className="locked-message">
+                      Your payment is <strong>not verified</strong> because of a suspected fake payment or the Transaction ID (UTR) is not clearly visible in the submitted screenshots. <strong>Screenshot submissions are now blocked.</strong>
+                    </div>
+
+                    {/* Prominent Mailing Option */}
+                    <div className="support-mailing-box">
+                      <div className="mailing-header">
+                        <Mail size={18} style={{ color: 'var(--primary)' }} />
+                        <span className="mailing-title">Resolve Payment Issue via Email</span>
+                      </div>
+                      <p className="mailing-desc">
+                        Since automated verification failed 3 times, please send your original payment receipt screenshot to our official support team for manual verification:
+                      </p>
+
+                      <div className="email-display-row">
+                        <span className="email-address">teamtwingle@gmail.com</span>
+                        <button
+                          type="button"
+                          className="copy-email-btn"
+                          onClick={handleCopySupportEmail}
+                          title="Copy Email Address"
+                        >
+                          {copiedSupportEmail ? <Check size={14} /> : <Copy size={14} />}
+                          <span>{copiedSupportEmail ? 'Copied' : 'Copy Email'}</span>
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="open-mail-btn"
+                        onClick={handleOpenSupportMail}
+                      >
+                        <Mail size={16} />
+                        <span>Send Verification Email to Support</span>
+                      </button>
+
+                      <div className="mailing-note">
+                        💡 <strong>Tip:</strong> In your email, please attach the full uncropped screenshot from your UPI app showing the 12-digit UTR and include your Ref ID: <code style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{currentTxnId || 'MC' + Date.now()}</code>.
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', textAlign: 'center' }}>
+                      <a
+                        href="/payment-help/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="payment-help-link-block"
+                      >
+                        <HelpCircle size={15} />
+                        <span>Visit Payment Help &amp; Token Redemption Page</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : (
+                  /* Attempts < 3: Upload zone and submit button */
+                  <>
+                    {verificationError && (
+                      <div className="verification-error-alert">
+                        <AlertTriangle size={20} style={{ flexShrink: 0, marginTop: '2px', color: '#f87171' }} />
+                        <div>
+                          <div style={{ fontWeight: 700, color: '#f87171', marginBottom: '4px' }}>
+                            Verification Failed (Attempt {verificationAttempts} of 3)
+                          </div>
+                          <div style={{ fontSize: '0.82rem', color: '#fca5a5', lineHeight: 1.45 }}>
+                            {verificationError}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#fbbf24', marginTop: '6px', fontWeight: 600 }}>
+                            ⚠️ {3 - verificationAttempts} chance{3 - verificationAttempts === 1 ? '' : 's'} remaining. Make sure the 12-digit UTR / Transaction ID is fully visible.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!paymentScreenshot ? (
+                      <label className="upload-zone">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              setScreenshotFileName(file.name);
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                setPaymentScreenshot(event.target?.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <Upload className="upload-icon" size={24} />
+                        <div className="upload-zone-text">Click to upload or drag screenshot here</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Upload clear screenshot showing the UPI Transaction ID / UTR
+                        </div>
+                      </label>
+                    ) : (
+                      <div className="screenshot-preview-container">
+                        <img src={paymentScreenshot} alt="Payment screenshot preview" className="screenshot-preview" />
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', wordBreak: 'break-all' }}>
+                          {screenshotFileName}
+                        </div>
+                        <button
+                          className="remove-screenshot-btn"
+                          disabled={isVerifyingPayment}
+                          onClick={() => {
+                            setPaymentScreenshot(null);
+                            setScreenshotFileName('');
+                            setVerificationSubmitted(false);
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+
                     <button
-                      className="remove-screenshot-btn"
-                      onClick={() => {
-                        setPaymentScreenshot(null);
-                        setScreenshotFileName('');
-                        setVerificationSubmitted(false);
+                      className="submit-verify-btn"
+                      disabled={!paymentScreenshot || isVerifyingPayment}
+                      onClick={handleVerifyPayment}
+                      style={{
+                        background: paymentScreenshot && !isVerifyingPayment ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                        color: paymentScreenshot && !isVerifyingPayment ? 'black' : 'var(--text-muted)'
                       }}
                     >
-                      Remove
+                      {isVerifyingPayment ? (
+                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <Loader2 size={16} className="spin-animation" />
+                          Verifying transaction with UPI gateway...
+                        </span>
+                      ) : (
+                        `Submit Payment Verification (Attempt ${verificationAttempts + 1} of 3)`
+                      )}
                     </button>
-                  </div>
-                )}
 
-                <button
-                  className="submit-verify-btn"
-                  disabled={!paymentScreenshot || verificationSubmitted}
-                  onClick={handleVerifyPayment}
-                  style={{
-                    background: paymentScreenshot ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
-                    color: paymentScreenshot ? 'black' : 'var(--text-muted)'
-                  }}
-                >
-                  {isVerifyingPayment ? 'Verifying transaction...' : 'Submit Payment Verification'}
-                </button>
-
-                {verificationSubmitted && (
-                  <div className="payment-warning-alert">
-                    <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <span>
-                      {isVerifyingPayment
-                        ? 'Verifying transaction with UPI gateway, please wait...'
-                        : 'Your payment will be confirmed within 24 hours. Please send the screenshot properly or send the original payment screenshot.'}
-                    </span>
-                  </div>
+                    {isVerifyingPayment && (
+                      <div className="payment-warning-alert" style={{ background: 'rgba(59, 130, 246, 0.08)', borderColor: 'rgba(59, 130, 246, 0.25)', color: '#93c5fd' }}>
+                        <Loader2 size={18} className="spin-animation" style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <span>Verifying transaction with UPI gateway, please wait...</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -3899,25 +4048,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Mobile Sponsor Banner (Prominent on Smartphones & Tablets) */}
-          <div className="mobile-sponsor-banner">
-            <div className="mobile-sponsor-left">
-              <span className="mobile-sponsor-badge">Sponsored</span>
-              <div className="mobile-sponsor-info">
-                <span className="mobile-sponsor-title">📹 Free Video Calling</span>
-                <span className="mobile-sponsor-sub">Live 1v1 Video Chat</span>
-              </div>
-            </div>
-            <a
-              href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
-              target="_blank"
-              rel="noopener"
-              className="mobile-sponsor-cta"
-            >
-              Call Now ➜
-            </a>
-          </div>
-
           {/* Random Calling View */}
           {viewMode === 'random' && (
             <div className="random-call-container">
@@ -3948,30 +4078,6 @@ export default function App() {
                   </div>
                 </div>
 
-              </div>
-
-              {/* Featured Free Video Calling Card */}
-              <div className="matches-sponsor-card">
-                <div className="matches-sponsor-left">
-                  <div className="matches-sponsor-icon">📹</div>
-                  <div className="matches-sponsor-details">
-                    <div className="matches-sponsor-header">
-                      <span className="matches-sponsor-title">Free Video Calling</span>
-                      <span className="matches-sponsor-badge">PROMO</span>
-                    </div>
-                    <div className="matches-sponsor-desc">
-                      Instant 1-on-1 private video chat with people worldwide
-                    </div>
-                  </div>
-                </div>
-                <a
-                  href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
-                  target="_blank"
-                  rel="noopener"
-                  className="matches-sponsor-btn"
-                >
-                  Join Call ➜
-                </a>
               </div>
 
               {/* Matches List Grid */}
@@ -4098,29 +4204,6 @@ export default function App() {
                   ? 'Welcome to Mallu Public Chat. Anyone can see messages here.'
                   : 'Secure Connection Established. Messages are direct and not stored anywhere.'}
               </div>
-
-              {viewMode === 'public' && (
-                <div className="chat-sponsor-pill">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>📹</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.82rem', color: '#fff' }}>Free Video Calling</span>
-                        <span style={{ fontSize: '0.6rem', background: 'rgba(255,255,255,0.1)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '4px' }}>Sponsored</span>
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Meet & video call online instantly</div>
-                    </div>
-                  </div>
-                  <a
-                    href="https://video.tvwebapp.com/?ivd=181861284&channel=1"
-                    target="_blank"
-                    rel="noopener"
-                    className="chat-sponsor-btn"
-                  >
-                    Start Call
-                  </a>
-                </div>
-              )}
 
               {(viewMode === 'private' ? messages : publicMessages).map((msg, idx) => {
                 if (viewMode === 'public' && !isPublicChatMessage(msg)) return null;
@@ -4451,23 +4534,6 @@ export default function App() {
         </div>
         <div style={{ padding: '1.5rem', color: 'var(--text-muted)' }}>
           <p>You are currently in <strong>{viewMode === 'public' ? 'World Chat' : 'Private Space'}</strong>.</p>
-
-          <div style={{ marginTop: '2rem', padding: '1.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '16px', border: '1px solid var(--panel-border)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>Sponsored</span>
-              <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '4px', color: 'var(--primary)' }}>Promo</span>
-            </div>
-            <div style={{ background: 'linear-gradient(135deg, #10b981, #059669)', padding: '12px 20px', borderRadius: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontWeight: 800, fontSize: '1.2rem', letterSpacing: '1px', boxShadow: '0 4px 12px rgba(16,185,129,0.3)' }}>
-              📹 Free Video Calling
-            </div>
-            <div style={{ fontSize: '0.85rem', lineHeight: '1.5', textAlign: 'center', color: 'var(--text-main)' }}>
-              <strong>FREE VIDEO CALLING</strong>
-              <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>Meet and video call with people worldwide live.</div>
-            </div>
-            <a href="https://video.tvwebapp.com/?ivd=181861284&channel=1" target="_blank" rel="noopener" style={{ display: 'block', textAlign: 'center', background: 'var(--primary)', color: 'black', fontWeight: 'bold', padding: '8px 16px', borderRadius: '20px', textDecoration: 'none', fontSize: '0.85rem' }}>
-              Start Free Video Call
-            </a>
-          </div>
 
           <div style={{ marginTop: '1.5rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid var(--panel-border)', paddingTop: '1rem' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.2rem' }}>Popular SEO Topics</div>
